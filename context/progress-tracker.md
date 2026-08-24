@@ -2,11 +2,11 @@
 
 ## Current Phase
 
-- Phase 1 complete — ready for backend core
+- Phase 2 complete — ready for classroom management
 
 ## Current Goal
 
-- Build the FastAPI backend core: configuration, database foundation, authentication, roles, and onboarding boundaries.
+- Build classroom management: classes, student membership through join codes, and teacher-controlled camera settings.
 
 ## Completed
 
@@ -17,6 +17,11 @@
 - Added a repeatable local recognition and camera-source verification script.
 - Started and verified the local PostgreSQL Docker service; it is healthy and accepting connections on port 5432.
 - Verified physical laptop webcam access locally: camera index `0` opened successfully and produced a `640×480` frame.
+- Implemented FastAPI configuration, PostgreSQL schema creation, CORS, and a health endpoint.
+- Implemented JWT authentication, role-protected current-user resolution, teacher invite-code registration, and email/password login.
+- Implemented student multipart onboarding with exactly three JPEG/PNG photos, local photo persistence, one-face-per-photo validation, and stored embeddings.
+- Verified API startup, OpenAPI auth routes, health response, and Ruff static checks against the local PostgreSQL service.
+- Corrected the student-upload OpenAPI schema so Swagger renders `photos` as binary file inputs rather than text strings.
 
 ## In Progress
 
@@ -24,7 +29,7 @@
 
 ## Next Up
 
-- Implement Phase 2: FastAPI configuration, PostgreSQL models, role-based authentication, and teacher/student onboarding APIs.
+- Implement Phase 3: class creation, join codes, membership APIs, and teacher camera-source configuration.
 
 ## Open Questions
 
@@ -40,3 +45,4 @@
 
 - `face_recognition_models` requires `setuptools<81` because it still imports `pkg_resources`; this compatibility pin is captured in `apps/api/requirements.txt`.
 - Camera sources are web-app configuration managed by teachers. OpenCV supports local indexes, IP-camera URLs, and video-file paths through the same source field.
+- A live student-enrollment request still needs manual verification with three real reference images; no biometric test images were created during backend verification.
