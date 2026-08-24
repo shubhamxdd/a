@@ -2,11 +2,11 @@
 
 ## Current Phase
 
-- Phase 4 complete — ready for React web application scaffolding
+- Phase 5 web MVP implemented — ready for browser-based end-to-end verification
 
 ## Current Goal
 
-- Scaffold the React web application and implement the shared authentication/onboarding shell.
+- Verify authentication, browser-camera enrollment, classroom operations, attendance sessions, and manual corrections through the React UI.
 
 ## Completed
 
@@ -37,16 +37,23 @@
 - Implemented teacher attendance correction as append-only audit events; automated results remain unchanged while attendance responses expose effective status and full override history.
 - Verified the correction table, OpenAPI route, Ruff checks, and Python compilation against the local PostgreSQL service.
 - Manually verified Phase 4 live recognition and attendance workers with enrolled reference images and a camera source.
+- Scaffolded the Vite, React, strict TypeScript, Tailwind CSS, and Lucide web application with semantic design tokens and responsive layouts.
+- Implemented JWT session restoration, shared login, teacher registration, and role-based teacher/student workspaces.
+- Implemented student registration with browser `getUserMedia`, exactly three camera captures, review thumbnails, and multipart API submission.
+- Implemented teacher class creation, join-code copying, camera-source setup, session start/stop controls, session history, attendance review, and manual correction dialogs.
+- Implemented student class-code joining and membership cards.
+- Added an explicitly typed API client for existing authentication, class, camera, session, sighting, attendance, and override contracts.
+- Verified the strict TypeScript check and production Vite build.
 
 ## In Progress
 
-- No implementation currently in progress.
+- Manual browser-based end-to-end verification of the new web application.
 
 ## Next Up
 
-- Scaffold the Vite, React, TypeScript, and Tailwind web application.
-- Implement the shared authentication flow and role-based routing.
-- Implement browser-camera capture of exactly three student enrollment photos.
+- Run the API and Vite development servers and verify both teacher and student flows with the local database.
+- Refine any UI/API integration issues found during browser testing.
+- Add student-only personal attendance history and percentage APIs, then connect them to the student dashboard.
 
 ## Open Questions
 
