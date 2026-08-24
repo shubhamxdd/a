@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from time import monotonic
 from uuid import UUID
 
 import cv2
@@ -21,10 +22,12 @@ from app.models import (
     FaceEncoding,
     SessionStatus,
     Sighting,
+    User,
 )
 
 MATCH_DISTANCE = 0.5
-SAMPLE_INTERVAL_SECONDS = 1.0
+SAMPLE_INTERVAL_SECONDS = 0.5
+PREVIEW_WIDTH = 640
 DEDUPLICATION_WINDOW = timedelta(seconds=5)
 
 
@@ -73,35 +76,70 @@ def run_worker(
     session_id: UUID,
     camera: CameraSource,
     known_student_ids: list[UUID],
+    known_student_names: list[str],
     known_embeddings: list[list[float]],
     stop_event: threading.Event,
 ) -> None:
     """Read one camera source and independently log confident student matches."""
     capture = cv2.VideoCapture(parse_capture_source(camera.source_type, camera.source))
+    capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     known_vectors = np.array(known_embeddings)
+    last_processed_at = 0.0
+    last_preview_at = 0.0
+    annotations: list[tuple[int, int, int, int, str, tuple[int, int, int]]] = []
     try:
         while not stop_event.is_set():
             read_ok, frame = capture.read()
             if not read_ok:
                 if camera.source_type is CameraSourceType.VIDEO_FILE:
                     break
-                stop_event.wait(0.5)
+                stop_event.wait(0.1)
                 continue
 
-            recognition_manager.publish_frame(session_id, camera.id, frame)
-            small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
-            rgb_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
-            locations = face_recognition.face_locations(rgb_frame)
-            encodings = face_recognition.face_encodings(rgb_frame, locations)
-            for encoding in encodings:
-                distances = face_recognition.face_distance(known_vectors, encoding)
-                if distances.size == 0:
-                    continue
-                match_index = int(np.argmin(distances))
-                distance = float(distances[match_index])
-                if distance < MATCH_DISTANCE:
-                    log_sighting(session_id, known_student_ids[match_index], camera.id, distance)
-            stop_event.wait(SAMPLE_INTERVAL_SECONDS)
+            now = monotonic()
+            if now - last_processed_at >= SAMPLE_INTERVAL_SECONDS:
+                last_processed_at = now
+                annotations = []
+                small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+                rgb_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
+                locations = face_recognition.face_locations(rgb_frame)
+                encodings = face_recognition.face_encodings(rgb_frame, locations)
+                for location, encoding in zip(locations, encodings):
+                    top, right, bottom, left = (value * 4 for value in location)
+                    label = "Unknown"
+                    color = (80, 80, 220)
+                    distances = face_recognition.face_distance(known_vectors, encoding)
+                    if distances.size:
+                        match_index = int(np.argmin(distances))
+                        distance = float(distances[match_index])
+                        if distance < MATCH_DISTANCE:
+                            label = known_student_names[match_index]
+                            color = (70, 180, 90)
+                            log_sighting(session_id, known_student_ids[match_index], camera.id, distance)
+                    annotations.append((top, right, bottom, left, label, color))
+
+            if now - last_preview_at >= 0.1:
+                last_preview_at = now
+                for top, right, bottom, left, label, color in annotations:
+                    cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
+                    cv2.rectangle(frame, (left, max(0, bottom - 30)), (right, bottom), color, cv2.FILLED)
+                    cv2.putText(
+                        frame,
+                        label,
+                        (left + 6, bottom - 9),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.55,
+                        (255, 255, 255),
+                        1,
+                        cv2.LINE_AA,
+                    )
+                preview = frame
+                if frame.shape[1] > PREVIEW_WIDTH:
+                    preview = cv2.resize(
+                        frame,
+                        (PREVIEW_WIDTH, int(frame.shape[0] * PREVIEW_WIDTH / frame.shape[1])),
+                    )
+                recognition_manager.publish_frame(session_id, camera.id, preview)
     finally:
         capture.release()
 
@@ -134,18 +172,20 @@ class RecognitionManager:
                 select(CameraSource).where(CameraSource.class_id == session.class_id, CameraSource.is_enabled.is_(True))
             ).all()
             enrolled = db.execute(
-                select(FaceEncoding.student_id, FaceEncoding.embedding)
+                select(FaceEncoding.student_id, User.full_name, FaceEncoding.embedding)
+                .join(User, User.id == FaceEncoding.student_id)
                 .join(ClassMembership, ClassMembership.student_id == FaceEncoding.student_id)
                 .where(ClassMembership.class_id == session.class_id)
             ).all()
-            student_ids = [student_id for student_id, _embedding in enrolled]
-            embeddings = [embedding for _student_id, embedding in enrolled]
+            student_ids = [student_id for student_id, _name, _embedding in enrolled]
+            student_names = [name for _student_id, name, _embedding in enrolled]
+            embeddings = [embedding for _student_id, _name, embedding in enrolled]
             handles: list[WorkerHandle] = []
             for camera in sources:
                 stop_event = threading.Event()
                 thread = threading.Thread(
                     target=run_worker,
-                    args=(session_id, camera, student_ids, embeddings, stop_event),
+                    args=(session_id, camera, student_ids, student_names, embeddings, stop_event),
                     daemon=True,
                     name=f"recognition-{session_id}-{camera.id}",
                 )

@@ -44,15 +44,17 @@
 - Implemented student class-code joining and membership cards.
 - Added an explicitly typed API client for existing authentication, class, camera, session, sighting, attendance, and override contracts.
 - Enlarged student enrollment camera preview for better self-framing and added camera/upload/mixed enrollment options with retake controls.
-- Replaced the competing browser `getUserMedia` teacher preview with a teacher-authenticated preview endpoint backed by the active recognition worker's latest JPEG frame.
-- Added bounded in-memory preview frame cleanup when sessions stop; the same preview path supports webcam, IP-stream, and video-file workers.
+- Reduced recognition sampling and preview latency by separating continuous frame reads from face-processing intervals and adding a one-frame capture buffer hint.
+- Added recognized-name and unknown-face overlays directly to teacher preview frames, including color-coded face boxes.
+- Increased preview polling frequency with in-flight request protection to avoid request backlog.
+- Verified the optimization with Ruff, Python compilation, strict TypeScript, Vite build, and `git diff --check`.
 - Added student-only attendance history and summary analytics with membership ownership checks; effective statuses reflect latest teacher corrections without exposing other students.
 - Connected the student dashboard to attendance percentage, attended/late/session metrics, and per-session history.
 - Verified the API and frontend builds after the attendance analytics addition.
 
 ## In Progress
 
-- Teacher live camera feed fix and browser verification with an active recognition session.
+- Camera feed latency and recognized-face overlay verification with an active recognition session.
 
 ## Next Up
 
