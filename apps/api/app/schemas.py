@@ -1,9 +1,10 @@
 """Request and response schemas exposed by the API."""
 
 from datetime import datetime
+from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, StringConstraints
 
 from app.models import AttendanceStatus, CameraSourceType, SessionStatus, UserRole
 
@@ -96,12 +97,29 @@ class AttendanceSessionResponse(BaseModel):
     qualification_window_minutes: int
 
 
+class AttendanceOverrideCreate(BaseModel):
+    status: AttendanceStatus
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=500)]
+
+
+class AttendanceOverrideResponse(BaseModel):
+    id: UUID
+    status: AttendanceStatus
+    reason: str
+    teacher_id: UUID
+    teacher_name: str
+    created_at: datetime
+
+
 class AttendanceRecordResponse(BaseModel):
     student_id: UUID
     student_name: str
     roll_number: str
     automated_status: AttendanceStatus
+    effective_status: AttendanceStatus
     qualifying_at: datetime | None
+    latest_override: AttendanceOverrideResponse | None = None
+    override_history: list[AttendanceOverrideResponse] = Field(default_factory=list)
 
 
 class SightingResponse(BaseModel):

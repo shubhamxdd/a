@@ -34,6 +34,8 @@
 - Updated the demo setup script to generate validator-compatible demo email addresses and expose API validation details when setup fails.
 - Decided that the React student onboarding flow will capture three photos directly from the browser camera; API file upload remains a fallback and test interface.
 - Verified session API table creation and routes, Ruff checks, and deterministic attendance qualification logic.
+- Implemented teacher attendance correction as append-only audit events; automated results remain unchanged while attendance responses expose effective status and full override history.
+- Verified the correction table, OpenAPI route, Ruff checks, and Python compilation against the local PostgreSQL service.
 - Manually verified Phase 4 live recognition and attendance workers with enrolled reference images and a camera source.
 
 ## In Progress

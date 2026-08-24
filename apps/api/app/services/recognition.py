@@ -10,6 +10,8 @@ from uuid import UUID
 import cv2
 import face_recognition
 import numpy as np
+from sqlalchemy import select
+
 from app.database import SessionLocal
 from app.models import (
     AttendanceSession,
@@ -20,7 +22,6 @@ from app.models import (
     SessionStatus,
     Sighting,
 )
-from sqlalchemy import select
 
 MATCH_DISTANCE = 0.5
 SAMPLE_INTERVAL_SECONDS = 1.0

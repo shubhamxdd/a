@@ -6,8 +6,9 @@ import shutil
 import uuid
 
 import face_recognition
-from app.config import settings
 from fastapi import HTTPException, UploadFile, status
+
+from app.config import settings
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png"}
 

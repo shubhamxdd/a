@@ -67,6 +67,9 @@ class User(Base):
     class_memberships: Mapped[list[ClassMembership]] = relationship(
         back_populates="student", cascade="all, delete-orphan"
     )
+    attendance_override_events: Mapped[list[AttendanceOverrideEvent]] = relationship(
+        back_populates="teacher", foreign_keys="AttendanceOverrideEvent.teacher_id"
+    )
 
 
 class StudentProfile(Base):
@@ -164,6 +167,9 @@ class AttendanceSession(Base):
     attendance_records: Mapped[list[AttendanceRecord]] = relationship(
         back_populates="session", cascade="all, delete-orphan"
     )
+    override_events: Mapped[list[AttendanceOverrideEvent]] = relationship(
+        back_populates="session", cascade="all, delete-orphan"
+    )
 
 
 class Sighting(Base):
@@ -191,3 +197,32 @@ class AttendanceRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     session: Mapped[AttendanceSession] = relationship(back_populates="attendance_records")
+
+
+class AttendanceOverrideEvent(Base):
+    """Immutable audit event representing a teacher's manual attendance correction."""
+
+    __tablename__ = "attendance_override_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("attendance_sessions.id", ondelete="CASCADE"), index=True
+    )
+    student_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    teacher_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    )
+    corrected_status: Mapped[AttendanceStatus] = mapped_column(
+        Enum(AttendanceStatus, name="attendance_status"),
+    )
+    reason: Mapped[str] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+    session: Mapped[AttendanceSession] = relationship(back_populates="override_events")
+    teacher: Mapped[User] = relationship(
+        back_populates="attendance_override_events", foreign_keys=[teacher_id]
+    )

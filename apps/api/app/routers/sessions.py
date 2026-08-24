@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import (
+    AttendanceOverrideEvent,
     AttendanceRecord,
     AttendanceSession,
     CameraSource,
@@ -22,6 +23,8 @@ from app.models import (
 )
 from app.routers.classes import get_owned_classroom
 from app.schemas import (
+    AttendanceOverrideCreate,
+    AttendanceOverrideResponse,
     AttendanceRecordResponse,
     AttendanceSessionCreate,
     AttendanceSessionResponse,
@@ -47,6 +50,17 @@ def serialize_session(session: AttendanceSession) -> AttendanceSessionResponse:
         grace_period_minutes=session.grace_period_minutes,
         minimum_sightings=session.minimum_sightings,
         qualification_window_minutes=session.qualification_window_minutes,
+    )
+
+
+def serialize_override(event: AttendanceOverrideEvent, teacher: User) -> AttendanceOverrideResponse:
+    return AttendanceOverrideResponse(
+        id=event.id,
+        status=event.corrected_status,
+        reason=event.reason,
+        teacher_id=teacher.id,
+        teacher_name=teacher.full_name,
+        created_at=event.created_at,
     )
 
 
@@ -131,16 +145,81 @@ def list_attendance_records(
         .where(AttendanceRecord.session_id == session_id)
         .order_by(User.full_name)
     ).all()
-    return [
-        AttendanceRecordResponse(
-            student_id=user.id,
-            student_name=user.full_name,
-            roll_number=profile.roll_number,
-            automated_status=record.automated_status,
-            qualifying_at=record.qualifying_at,
+    override_rows = db.execute(
+        select(AttendanceOverrideEvent, User)
+        .join(User, User.id == AttendanceOverrideEvent.teacher_id)
+        .where(AttendanceOverrideEvent.session_id == session_id)
+        .order_by(AttendanceOverrideEvent.created_at.desc(), AttendanceOverrideEvent.id.desc())
+    ).all()
+    overrides_by_student: dict[UUID, list[tuple[AttendanceOverrideEvent, User]]] = {}
+    for event, override_teacher in override_rows:
+        overrides_by_student.setdefault(event.student_id, []).append((event, override_teacher))
+
+    responses: list[AttendanceRecordResponse] = []
+    for record, student, profile in rows:
+        override_history = overrides_by_student.get(student.id, [])
+        latest = override_history[0] if override_history else None
+        latest_override = serialize_override(*latest) if latest else None
+        responses.append(
+            AttendanceRecordResponse(
+                student_id=student.id,
+                student_name=student.full_name,
+                roll_number=profile.roll_number,
+                automated_status=record.automated_status,
+                effective_status=latest[0].corrected_status if latest else record.automated_status,
+                qualifying_at=record.qualifying_at,
+                latest_override=latest_override,
+                override_history=[
+                    serialize_override(event, override_teacher)
+                    for event, override_teacher in override_history
+                ],
+            )
         )
-        for record, user, profile in rows
-    ]
+    return responses
+
+
+@router.patch(
+    "/sessions/{session_id}/attendance/{student_id}",
+    response_model=AttendanceOverrideResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def override_attendance(
+    session_id: UUID,
+    student_id: UUID,
+    payload: AttendanceOverrideCreate,
+    teacher: TeacherUser,
+    db: DbSession,
+) -> AttendanceOverrideResponse:
+    """Append an immutable teacher correction without changing the automated result."""
+    session = get_owned_session(session_id, teacher, db)
+    if session.status is not SessionStatus.COMPLETED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Attendance can be corrected only after the session is completed.",
+        )
+    attendance_record = db.scalar(
+        select(AttendanceRecord).where(
+            AttendanceRecord.session_id == session_id,
+            AttendanceRecord.student_id == student_id,
+        )
+    )
+    if attendance_record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Attendance record not found for this session and student.",
+        )
+
+    event = AttendanceOverrideEvent(
+        session_id=session.id,
+        student_id=student_id,
+        teacher_id=teacher.id,
+        corrected_status=payload.status,
+        reason=payload.reason.strip(),
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return serialize_override(event, teacher)
 
 
 @router.get("/sessions/{session_id}/sightings", response_model=list[SightingResponse])
