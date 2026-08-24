@@ -43,17 +43,20 @@
 - Implemented teacher class creation, join-code copying, camera-source setup, session start/stop controls, session history, attendance review, and manual correction dialogs.
 - Implemented student class-code joining and membership cards.
 - Added an explicitly typed API client for existing authentication, class, camera, session, sighting, attendance, and override contracts.
-- Verified the strict TypeScript check and production Vite build.
+- Enlarged student enrollment camera preview for better self-framing and added camera/upload/mixed enrollment options with retake controls.
+- Added a teacher-facing live local webcam preview that activates during an attendance session and shows source state/errors.
+- Verified the updated frontend with the strict TypeScript check and production Vite build.
 
 ## In Progress
 
-- Manual browser-based end-to-end verification of the new web application.
+- Manual browser verification of the enlarged enrollment capture/upload flow and teacher live camera preview.
 
 ## Next Up
 
-- Run the API and Vite development servers and verify both teacher and student flows with the local database.
+- Verify the browser camera preview and uploaded image paths on desktop and mobile-sized layouts.
+- Verify the teacher preview with the local webcam during an active recognition session.
+- Add an authenticated backend frame stream for remote IP-camera/video-file previews if teachers need to view non-local sources in-browser.
 - Refine any UI/API integration issues found during browser testing.
-- Add student-only personal attendance history and percentage APIs, then connect them to the student dashboard.
 
 ## Open Questions
 
