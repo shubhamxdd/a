@@ -81,8 +81,8 @@ class CameraSourceResponse(BaseModel):
 class AttendanceSessionCreate(BaseModel):
     title: str = Field(min_length=2, max_length=160)
     grace_period_minutes: int = Field(default=10, ge=0, le=120)
-    minimum_sightings: int = Field(default=3, ge=1, le=20)
-    qualification_window_minutes: int = Field(default=5, ge=1, le=60)
+    minimum_sightings: int = Field(default=1, ge=1, le=20)
+    qualification_window_minutes: int = Field(default=1, ge=1, le=60)
 
 
 class AttendanceSessionResponse(BaseModel):
@@ -95,6 +95,7 @@ class AttendanceSessionResponse(BaseModel):
     grace_period_minutes: int
     minimum_sightings: int
     qualification_window_minutes: int
+    presence_threshold_percentage: float = 70.0
 
 
 class AttendanceOverrideCreate(BaseModel):
@@ -118,6 +119,9 @@ class AttendanceRecordResponse(BaseModel):
     automated_status: AttendanceStatus
     effective_status: AttendanceStatus
     qualifying_at: datetime | None
+    observed_windows: int = 0
+    eligible_windows: int = 0
+    presence_percentage: float = 0.0
     latest_override: AttendanceOverrideResponse | None = None
     override_history: list[AttendanceOverrideResponse] = Field(default_factory=list)
 
@@ -132,6 +136,9 @@ class StudentAttendanceEntry(BaseModel):
     automated_status: AttendanceStatus
     effective_status: AttendanceStatus
     qualifying_at: datetime | None
+    observed_windows: int
+    eligible_windows: int
+    presence_percentage: float
 
 
 class StudentAttendanceSummary(BaseModel):

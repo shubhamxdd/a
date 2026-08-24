@@ -1,7 +1,8 @@
-"""Attendance qualification and result calculation."""
+"""Time-window attendance coverage and result calculation."""
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from datetime import timedelta
 from uuid import UUID
@@ -19,21 +20,34 @@ from app.models import (
     User,
 )
 
+PRESENT_THRESHOLD_PERCENTAGE = 70.0
+LATE_THRESHOLD_PERCENTAGE = 30.0
 
-def qualifying_time(session: AttendanceSession, sightings: list[Sighting]):
-    """Return the first time a student reaches the rolling-window sighting threshold."""
-    window = timedelta(minutes=session.qualification_window_minutes)
-    timestamps = sorted(sighting.matched_at for sighting in sightings)
-    for index, timestamp in enumerate(timestamps):
-        window_start = timestamp - window
-        count = sum(candidate >= window_start for candidate in timestamps[: index + 1])
-        if count >= session.minimum_sightings:
-            return timestamp
-    return None
+
+def session_window_count(session: AttendanceSession) -> int:
+    """Return the number of one-minute windows available in a completed session."""
+    if session.ended_at is None:
+        return 0
+    duration_seconds = max(60.0, (session.ended_at - session.started_at).total_seconds())
+    return max(1, math.ceil(duration_seconds / 60))
+
+
+def observed_window_indexes(session: AttendanceSession, sightings: list[Sighting]) -> set[int]:
+    """Collapse any number of camera sightings into one minute-level observation."""
+    total_windows = session_window_count(session)
+    indexes: set[int] = set()
+    for sighting in sightings:
+        offset_seconds = (sighting.matched_at - session.started_at).total_seconds()
+        if offset_seconds < 0:
+            continue
+        window_index = int(offset_seconds // 60)
+        if window_index < total_windows:
+            indexes.add(window_index)
+    return indexes
 
 
 def calculate_attendance(session: AttendanceSession, db: Session) -> list[AttendanceRecord]:
-    """Create one immutable automated result for each member of a completed session."""
+    """Create one automated result per member using one-minute presence coverage."""
     members = db.execute(
         select(User, StudentProfile)
         .join(ClassMembership, ClassMembership.student_id == User.id)
@@ -45,20 +59,41 @@ def calculate_attendance(session: AttendanceSession, db: Session) -> list[Attend
     for sighting in all_sightings:
         sightings_by_student[sighting.student_id].append(sighting)
 
+    eligible_windows = session_window_count(session)
     grace_deadline = session.started_at + timedelta(minutes=session.grace_period_minutes)
     records: list[AttendanceRecord] = []
     for student, _profile in members:
-        qualified_at = qualifying_time(session, sightings_by_student[student.id])
-        status = AttendanceStatus.ABSENT
-        if qualified_at is not None:
-            status = AttendanceStatus.PRESENT if qualified_at <= grace_deadline else AttendanceStatus.LATE
+        sightings = sightings_by_student[student.id]
+        observed_indexes = observed_window_indexes(session, sightings)
+        observed_windows = len(observed_indexes)
+        percentage = observed_windows / eligible_windows * 100 if eligible_windows else 0.0
+        qualifying_at = min(
+            (sighting.matched_at for sighting in sightings),
+            default=None,
+        )
+        if percentage >= PRESENT_THRESHOLD_PERCENTAGE:
+            status = AttendanceStatus.PRESENT if qualifying_at and qualifying_at <= grace_deadline else AttendanceStatus.LATE
+        elif percentage >= LATE_THRESHOLD_PERCENTAGE:
+            status = AttendanceStatus.LATE
+        else:
+            status = AttendanceStatus.ABSENT
         record = AttendanceRecord(
             session_id=session.id,
             student_id=student.id,
             automated_status=status,
-            qualifying_at=qualified_at,
+            qualifying_at=qualifying_at,
         )
         db.add(record)
         records.append(record)
     db.commit()
     return records
+
+
+def coverage_for_record(
+    session: AttendanceSession, sightings: list[Sighting]
+) -> tuple[int, int, float]:
+    """Return observed windows, eligible windows, and percentage for API serialization."""
+    eligible_windows = session_window_count(session)
+    observed_windows = len(observed_window_indexes(session, sightings))
+    percentage = observed_windows / eligible_windows * 100 if eligible_windows else 0.0
+    return observed_windows, eligible_windows, round(percentage, 1)

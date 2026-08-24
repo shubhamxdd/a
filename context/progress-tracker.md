@@ -51,18 +51,22 @@
 - Verified the multi-source preview UI with strict TypeScript, Vite build, and `git diff --check`.
 - Added student-only attendance history and summary analytics with membership ownership checks; effective statuses reflect latest teacher corrections without exposing other students.
 - Connected the student dashboard to attendance percentage, attended/late/session metrics, and per-session history.
-- Verified the API and frontend builds after the attendance analytics addition.
+- Replaced rolling three-sighting attendance qualification with one-minute presence-window coverage across all enabled camera sources.
+- Added observed/eligible window counts and presence percentages to teacher and student attendance responses and dashboards.
+- Added root README.md with attendance formulas, multi-camera behavior, Mermaid flow charts, camera preview flow, privacy boundaries, and local setup.
+- Updated product and architecture context to document the minute-window attendance model.
 
 ## In Progress
 
-- Multi-source webcam/IP-camera preview selector browser verification during an active recognition session.
+- Browser verification of one-minute coverage results, including a 50/60-minute example and multi-camera same-window deduplication.
 
 ## Next Up
 
 - Verify the browser camera preview and uploaded image paths on desktop and mobile-sized layouts.
 - Verify the teacher preview with the local webcam during an active recognition session.
-- Exercise student attendance history with completed sessions and teacher overrides.
-- Refine any UI/API integration issues found during browser testing.
+- Verify the one-minute coverage calculation with a completed 60-minute session and multiple camera sources.
+- Verify the teacher/student coverage fields and README flow against the running services.
+- Refine any threshold or camera-availability behavior found during browser testing.
 
 ## Open Questions
 

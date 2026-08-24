@@ -104,7 +104,7 @@ export const api = {
   startSession: (classId: string, title: string) =>
     request<AttendanceSession>(`/classes/${classId}/sessions`, {
       method: 'POST',
-      body: JSON.stringify({ title }),
+      body: JSON.stringify({ title, qualification_window_minutes: 1, minimum_sightings: 1 }),
     }),
   stopSession: (sessionId: string) =>
     request<AttendanceSession>(`/sessions/${sessionId}/stop`, { method: 'POST' }),

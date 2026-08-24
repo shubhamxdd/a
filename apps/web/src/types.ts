@@ -48,6 +48,7 @@ export interface AttendanceSession {
   grace_period_minutes: number
   minimum_sightings: number
   qualification_window_minutes: number
+  presence_threshold_percentage: number
 }
 
 export interface AttendanceOverride {
@@ -66,6 +67,9 @@ export interface AttendanceRecord {
   automated_status: AttendanceStatus
   effective_status: AttendanceStatus
   qualifying_at: string | null
+  observed_windows: number
+  eligible_windows: number
+  presence_percentage: number
   latest_override: AttendanceOverride | null
   override_history: AttendanceOverride[]
 }
@@ -90,6 +94,9 @@ export interface AttendanceHistoryEntry {
   automated_status: AttendanceStatus
   effective_status: AttendanceStatus
   qualifying_at: string | null
+  observed_windows: number
+  eligible_windows: number
+  presence_percentage: number
 }
 
 export interface Sighting {

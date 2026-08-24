@@ -35,7 +35,7 @@ from app.schemas import (
     StudentAttendanceSummary,
 )
 from app.security import require_role
-from app.services.attendance import calculate_attendance
+from app.services.attendance import calculate_attendance, coverage_for_record
 from app.services.recognition import recognition_manager
 
 router = APIRouter(tags=["attendance sessions"])
@@ -55,8 +55,8 @@ def serialize_session(session: AttendanceSession) -> AttendanceSessionResponse:
         grace_period_minutes=session.grace_period_minutes,
         minimum_sightings=session.minimum_sightings,
         qualification_window_minutes=session.qualification_window_minutes,
+        presence_threshold_percentage=70.0,
     )
-
 
 def serialize_override(event: AttendanceOverrideEvent, teacher: User) -> AttendanceOverrideResponse:
     return AttendanceOverrideResponse(
@@ -142,7 +142,7 @@ def list_sessions(class_id: UUID, teacher: TeacherUser, db: DbSession) -> list[A
 def list_attendance_records(
     session_id: UUID, teacher: TeacherUser, db: DbSession
 ) -> list[AttendanceRecordResponse]:
-    get_owned_session(session_id, teacher, db)
+    session = get_owned_session(session_id, teacher, db)
     rows = db.execute(
         select(AttendanceRecord, User, StudentProfile)
         .join(User, User.id == AttendanceRecord.student_id)
@@ -160,11 +160,19 @@ def list_attendance_records(
     for event, override_teacher in override_rows:
         overrides_by_student.setdefault(event.student_id, []).append((event, override_teacher))
 
+    all_sightings = db.scalars(select(Sighting).where(Sighting.session_id == session_id)).all()
+    sightings_by_student: dict[UUID, list[Sighting]] = {}
+    for sighting in all_sightings:
+        sightings_by_student.setdefault(sighting.student_id, []).append(sighting)
+
     responses: list[AttendanceRecordResponse] = []
     for record, student, profile in rows:
         override_history = overrides_by_student.get(student.id, [])
         latest = override_history[0] if override_history else None
         latest_override = serialize_override(*latest) if latest else None
+        observed_windows, eligible_windows, presence_percentage = coverage_for_record(
+            session, sightings_by_student.get(student.id, [])
+        )
         responses.append(
             AttendanceRecordResponse(
                 student_id=student.id,
@@ -173,6 +181,9 @@ def list_attendance_records(
                 automated_status=record.automated_status,
                 effective_status=latest[0].corrected_status if latest else record.automated_status,
                 qualifying_at=record.qualifying_at,
+                observed_windows=observed_windows,
+                eligible_windows=eligible_windows,
+                presence_percentage=presence_percentage,
                 latest_override=latest_override,
                 override_history=[
                     serialize_override(event, override_teacher)
@@ -279,6 +290,15 @@ def student_attendance_history(student: StudentUser, db: DbSession) -> StudentAt
     history: list[StudentAttendanceEntry] = []
     for record, session, classroom in rows:
         effective_status = latest_overrides.get(record.session_id)
+        observed_windows, eligible_windows, presence_percentage = coverage_for_record(
+            session,
+            db.scalars(
+                select(Sighting).where(
+                    Sighting.session_id == session.id,
+                    Sighting.student_id == student.id,
+                )
+            ).all(),
+        )
         history.append(
             StudentAttendanceEntry(
                 session_id=session.id,
@@ -290,6 +310,9 @@ def student_attendance_history(student: StudentUser, db: DbSession) -> StudentAt
                 automated_status=record.automated_status,
                 effective_status=effective_status.corrected_status if effective_status else record.automated_status,
                 qualifying_at=record.qualifying_at,
+                observed_windows=observed_windows,
+                eligible_windows=eligible_windows,
+                presence_percentage=presence_percentage,
             )
         )
 

@@ -20,7 +20,7 @@
 
 ## Storage Model
 
-- **PostgreSQL**: user profiles, password hashes, classes, memberships, face-encoding metadata, camera settings, sessions, raw sightings, computed attendance, and override audit events.
+- **PostgreSQL**: user profiles, password hashes, classes, memberships, face-encoding metadata, camera settings, sessions, raw sightings, minute-level attendance coverage derived from sightings, computed attendance, and override audit events.
 - **Local media storage**: the three uploaded enrollment photos per student. Database rows retain safe relative paths.
 
 ## Auth and Access Model
@@ -32,7 +32,7 @@
 
 ## Invariants
 
-1. Camera workers are independent and communicate only through persisted sightings.
+1. Camera workers are independent and communicate only through persisted sightings; attendance collapses sightings into one credit per student per one-minute window.
 2. Raw automated attendance is never overwritten by a teacher correction; corrections create immutable audit events.
 3. A match at face distance `>= 0.5` cannot create a student sighting.
 4. Enrollment images remain local and embeddings are generated before a student can participate in attendance.

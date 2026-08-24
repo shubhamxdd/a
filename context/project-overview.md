@@ -32,8 +32,9 @@ A local-first hackathon application for classroom attendance using a laptop webc
 
 - Laptop webcam plus phone IP-stream or recorded-video source.
 - Independent per-camera recognition workers and five-second cross-camera de-duplication.
-- Three sightings in a rolling five-minute window qualify a student.
-- Ten-minute grace period distinguishes Present from Late.
+- One-minute presence windows: any confident sighting in a minute gives one student presence credit, regardless of camera count or repeated detections.
+- Automated status uses coverage thresholds: Present at 70%+ within the grace period, Late at 70%+ after grace or 30–69.9%, and Absent below 30%.
+- Ten-minute grace period distinguishes on-time Present from Late.
 
 ### Dashboards
 
