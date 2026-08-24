@@ -8,7 +8,7 @@ from fastapi.openapi.utils import get_openapi
 
 from app.config import settings
 from app.database import Base, engine
-from app.routers import auth
+from app.routers import auth, classes
 
 
 @asynccontextmanager
@@ -27,6 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(classes.router, prefix="/api/v1")
 
 
 def custom_openapi() -> dict:

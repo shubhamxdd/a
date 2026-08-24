@@ -2,11 +2,11 @@
 
 ## Current Phase
 
-- Phase 2 complete — ready for classroom management
+- Phase 3 implemented — ready for manual API testing
 
 ## Current Goal
 
-- Build classroom management: classes, student membership through join codes, and teacher-controlled camera settings.
+- Manually verify classroom creation, class-code membership, and teacher-controlled camera settings.
 
 ## Completed
 
@@ -22,14 +22,17 @@
 - Implemented student multipart onboarding with exactly three JPEG/PNG photos, local photo persistence, one-face-per-photo validation, and stored embeddings.
 - Verified API startup, OpenAPI auth routes, health response, and Ruff static checks against the local PostgreSQL service.
 - Corrected the student-upload OpenAPI schema so Swagger renders `photos` as binary file inputs rather than text strings.
+- Implemented teacher-owned classes, unique join codes, student class memberships, and role-aware class listing.
+- Implemented teacher-only camera-source create, list, and update APIs supporting webcam indexes, IP-camera URLs, and video-file paths.
+- Verified the new ORM mappings, database table creation, API startup, OpenAPI class routes, and Ruff checks against PostgreSQL.
 
 ## In Progress
 
-- No implementation currently in progress.
+- Manual Phase 3 API verification in Swagger or curl.
 
 ## Next Up
 
-- Implement Phase 3: class creation, join codes, membership APIs, and teacher camera-source configuration.
+- After manual verification, commit Phase 3 and implement attendance sessions plus camera workers.
 
 ## Open Questions
 
