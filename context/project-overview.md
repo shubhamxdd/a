@@ -8,7 +8,7 @@ A local-first hackathon application for classroom attendance using a laptop webc
 
 1. Recognize enrolled students independently from two camera feeds and merge duplicate sightings.
 2. Compute Present, Late, and Absent status using transparent session rules.
-3. Give teachers operational controls and students private access to only their own attendance.
+3. Give teachers operational controls, explainable attendance intelligence, and downloadable integrity reports while students retain private access to only their own attendance.
 
 ## Core User Flow
 
@@ -38,7 +38,7 @@ A local-first hackathon application for classroom attendance using a laptop webc
 
 ### Dashboards
 
-- Teacher class, session, camera, attendance, and correction workflows.
+- Teacher class, session, camera, attendance, correction, timeline, camera-zone, review-queue, and integrity-report workflows.
 - Student personal attendance percentage and session history.
 
 ## Scope
@@ -50,7 +50,7 @@ A local-first hackathon application for classroom attendance using a laptop webc
 
 ### Out of Scope
 
-- Engagement detection, seating maps, alerts, geometric calibration, and real multi-day trend analysis.
+- Engagement detection, geometric camera calibration, alerts, and real multi-day trend analysis. The current camera-zone view is an operational source summary, not inferred seating or identity tracking.
 - Hosted deployment and production-grade identity verification.
 
 ## Success Criteria

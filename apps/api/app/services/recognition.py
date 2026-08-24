@@ -38,6 +38,13 @@ class WorkerHandle:
     thread: threading.Thread
 
 
+@dataclass
+class CameraHealth:
+    last_frame_at: datetime | None = None
+    last_attempt_at: datetime | None = None
+    status: str = "starting"
+
+
 def parse_capture_source(source_type: CameraSourceType, source: str) -> int | str:
     return int(source) if source_type is CameraSourceType.WEBCAM and source.isdigit() else source
 
@@ -91,11 +98,13 @@ def run_worker(
         while not stop_event.is_set():
             read_ok, frame = capture.read()
             if not read_ok:
+                recognition_manager.mark_camera_attempt(session_id, camera.id, successful=False)
                 if camera.source_type is CameraSourceType.VIDEO_FILE:
                     break
                 stop_event.wait(0.1)
                 continue
 
+            recognition_manager.mark_camera_attempt(session_id, camera.id, successful=True)
             now = monotonic()
             if now - last_processed_at >= SAMPLE_INTERVAL_SECONDS:
                 last_processed_at = now
@@ -150,7 +159,28 @@ class RecognitionManager:
     def __init__(self) -> None:
         self._workers: dict[UUID, list[WorkerHandle]] = {}
         self._preview_frames: dict[tuple[UUID, UUID], bytes] = {}
+        self._camera_health: dict[tuple[UUID, UUID], CameraHealth] = {}
         self._lock = threading.Lock()
+
+    def mark_camera_attempt(self, session_id: UUID, camera_id: UUID, successful: bool) -> None:
+        with self._lock:
+            health = self._camera_health.setdefault((session_id, camera_id), CameraHealth())
+            now = datetime.now(UTC)
+            health.last_attempt_at = now
+            if successful:
+                health.last_frame_at = now
+                health.status = "healthy"
+            elif health.last_frame_at is None or (now - health.last_frame_at).total_seconds() > 5:
+                health.status = "offline"
+
+    def get_camera_health(self, session_id: UUID, camera_id: UUID) -> CameraHealth:
+        with self._lock:
+            health = self._camera_health.get((session_id, camera_id))
+            if health is None:
+                return CameraHealth(status="offline")
+            if health.last_frame_at and (datetime.now(UTC) - health.last_frame_at).total_seconds() > 5:
+                health.status = "degraded"
+            return CameraHealth(health.last_frame_at, health.last_attempt_at, health.status)
 
     def publish_frame(self, session_id: UUID, camera_id: UUID, frame: np.ndarray) -> None:
         """Keep one bounded JPEG preview per worker without retaining raw frame history."""
@@ -192,17 +222,21 @@ class RecognitionManager:
                 thread.start()
                 handles.append(WorkerHandle(camera_id=camera.id, stop_event=stop_event, thread=thread))
             self._workers[session_id] = handles
+            for camera in sources:
+                self._camera_health[(session_id, camera.id)] = CameraHealth()
             return len(handles)
 
     def stop_session(self, session_id: UUID) -> None:
         with self._lock:
             handles = self._workers.pop(session_id, [])
-            for handle in handles:
-                self._preview_frames.pop((session_id, handle.camera_id), None)
         for handle in handles:
             handle.stop_event.set()
         for handle in handles:
             handle.thread.join(timeout=3)
+        with self._lock:
+            for handle in handles:
+                self._preview_frames.pop((session_id, handle.camera_id), None)
+                self._camera_health.pop((session_id, handle.camera_id), None)
 
     def stop_all(self) -> None:
         for session_id in list(self._workers):

@@ -6,13 +6,22 @@ import secrets
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import CameraSource, ClassMembership, Classroom, User, UserRole
+from app.models import (
+    AttendanceSession,
+    CameraSource,
+    ClassMembership,
+    Classroom,
+    SessionStatus,
+    Sighting,
+    User,
+    UserRole,
+)
 from app.schemas import (
     CameraSourceCreate,
     CameraSourceResponse,
@@ -143,6 +152,29 @@ def create_camera_source(
     db.commit()
     db.refresh(source)
     return serialize_camera(source)
+
+
+@router.delete("/{class_id}/camera-sources/{source_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_camera_source(class_id: UUID, source_id: UUID, teacher: TeacherUser, db: DbSession) -> Response:
+    """Delete an unused camera configuration without destroying attendance audit data."""
+    get_owned_classroom(class_id, teacher, db)
+    source = db.scalar(select(CameraSource).where(CameraSource.id == source_id, CameraSource.class_id == class_id))
+    if source is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera source not found.")
+    active_session = db.scalar(
+        select(AttendanceSession.id).where(
+            AttendanceSession.class_id == class_id,
+            AttendanceSession.status == SessionStatus.ACTIVE,
+        )
+    )
+    if active_session is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Stop the active attendance session before deleting a camera source.")
+    has_sightings = db.scalar(select(Sighting.id).where(Sighting.camera_source_id == source_id).limit(1))
+    if has_sightings is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This source has attendance history. Disable it instead to preserve the audit trail.")
+    db.delete(source)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.patch("/{class_id}/camera-sources/{source_id}", response_model=CameraSourceResponse)

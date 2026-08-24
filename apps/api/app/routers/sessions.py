@@ -5,6 +5,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -30,12 +31,14 @@ from app.schemas import (
     AttendanceRecordResponse,
     AttendanceSessionCreate,
     AttendanceSessionResponse,
+    SessionInsightsResponse,
     SightingResponse,
     StudentAttendanceEntry,
     StudentAttendanceSummary,
 )
 from app.security import require_role
 from app.services.attendance import calculate_attendance, coverage_for_record
+from app.services.insights import build_session_insights
 from app.services.recognition import recognition_manager
 
 router = APIRouter(tags=["attendance sessions"])
@@ -329,6 +332,33 @@ def student_attendance_history(student: StudentUser, db: DbSession) -> StudentAt
         absent_sessions=absent_sessions,
         attendance_percentage=round(attended_sessions / total_sessions * 100, 1) if total_sessions else 0.0,
         history=history,
+    )
+
+
+@router.get("/sessions/{session_id}/insights", response_model=SessionInsightsResponse)
+def session_insights(session_id: UUID, teacher: TeacherUser, db: DbSession) -> SessionInsightsResponse:
+    session = get_owned_session(session_id, teacher, db)
+    return SessionInsightsResponse.model_validate(build_session_insights(session, db))
+
+
+@router.get("/sessions/{session_id}/report.csv")
+def session_report(session_id: UUID, teacher: TeacherUser, db: DbSession) -> StreamingResponse:
+    """Download a teacher-owned integrity report without exposing biometric data."""
+    session = get_owned_session(session_id, teacher, db)
+    insights = build_session_insights(session, db)
+    rows = ["student,roll_number,automated_status,effective_status,observed_windows,eligible_windows,presence_percentage,first_seen,last_seen,review_reasons"]
+    for student in insights["students"]:  # type: ignore[index]
+        values = [
+            str(student[key]).replace('"', '""') if student[key] is not None else ""
+            for key in ("student_name", "roll_number", "automated_status", "effective_status", "observed_windows", "eligible_windows", "presence_percentage", "first_seen_at", "last_seen_at")
+        ]
+        values.append("; ".join(student["review_reasons"]))  # type: ignore[index]
+        rows.append(",".join(f'"{value}"' for value in values))
+    content = "\n".join(rows) + "\n"
+    return StreamingResponse(
+        iter([content]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="attendance-{session.id}.csv"'},
     )
 
 

@@ -177,7 +177,7 @@ class Sighting(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("attendance_sessions.id", ondelete="CASCADE"), index=True)
-    student_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    student_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=True)
     camera_source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("camera_sources.id", ondelete="CASCADE"))
     matched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     face_distance: Mapped[float] = mapped_column()

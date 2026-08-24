@@ -10,6 +10,7 @@ Local-first, multi-camera classroom attendance with browser enrollment, teacher 
 - Raw sightings are retained for audit and debugging.
 - Attendance is calculated using one-minute presence windows, not raw detection counts.
 - Teachers can review coverage, see annotated camera feeds, and append manual corrections.
+- Teacher insights include timeline replay, camera-zone summaries and health state, first/last-seen explanations, arrival/departure signals, a review queue, and downloadable CSV integrity reports.
 - Students can view only their own classes and attendance history.
 
 ## Attendance model
@@ -116,6 +117,19 @@ apps/web/       React, TypeScript, Tailwind UI, API client
 packages/       Shared contract notes
 context/        Product, architecture, UI, standards, and progress docs
 ```
+
+## Teacher intelligence features
+
+Completed sessions expose a derived insights view without adding biometric data to the browser:
+
+- **Timeline replay**: timestamped student sightings are shown in chronological order, capped to the latest 200 events.
+- **Presence map / camera zones**: each configured source reports students seen and sighting volume; active sources also report healthy, degraded, or offline state based on the latest worker frame.
+- **Attendance explanations**: coverage rows show first seen, last seen, camera count, and presence percentage.
+- **Arrival and departure signals**: the first and last confident sightings identify late arrival and early departure review conditions.
+- **Review queue**: borderline coverage, late first sightings, early departure, single-camera visibility, and no-sighting records are prioritized.
+- **Integrity report**: teachers can download a CSV containing status, coverage, timing, camera count, and review reasons. It never contains embeddings, face distances, image paths, or raw media.
+
+The API routes are teacher-owned: `GET /sessions/{session_id}/insights` and `GET /sessions/{session_id}/report.csv`.
 
 ## Privacy and access boundaries
 

@@ -20,7 +20,7 @@
 
 ## Storage Model
 
-- **PostgreSQL**: user profiles, password hashes, classes, memberships, face-encoding metadata, camera settings, sessions, raw sightings, minute-level attendance coverage derived from sightings, computed attendance, and override audit events.
+- **PostgreSQL**: user profiles, password hashes, classes, memberships, face-encoding metadata, camera settings, sessions, raw sightings, minute-level attendance coverage derived from sightings, computed attendance, and override audit events. Timeline, camera-zone, explanation, review-queue, and report data are derived at request time.
 - **Local media storage**: the three uploaded enrollment photos per student. Database rows retain safe relative paths.
 
 ## Auth and Access Model
@@ -37,3 +37,5 @@
 3. A match at face distance `>= 0.5` cannot create a student sighting.
 4. Enrollment images remain local and embeddings are generated before a student can participate in attendance.
 5. Live preview storage is bounded to one in-memory compressed frame per active camera and is removed when its session stops.
+6. Camera health is bounded to last-frame timestamps and status per active source; it is not persisted as a frame history.
+7. Teacher insight and report routes are scoped through the owned session and never expose embeddings, face images, or biometric file paths.

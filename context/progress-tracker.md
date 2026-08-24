@@ -24,7 +24,7 @@
 - Corrected the student-upload OpenAPI schema so Swagger renders `photos` as binary file inputs rather than text strings.
 - Implemented teacher-owned classes, unique join codes, student class memberships, and role-aware class listing.
 - Implemented teacher-only camera-source create, list, and update APIs supporting webcam indexes, IP-camera URLs, and video-file paths.
-- Connected camera-source updates to the teacher UI, including edit, enable, and disable controls.
+- Connected camera-source updates to the teacher UI, including edit, enable, disable, and protected delete controls.
 - Connected live sightings polling to a bounded recent-recognitions panel in the teacher workspace.
 - Verified the new ORM mappings, database table creation, API startup, OpenAPI class routes, and Ruff checks against PostgreSQL.
 - Implemented attendance-session, sighting, and automated attendance-record persistence.
@@ -57,10 +57,13 @@
 - Added observed/eligible window counts and presence percentages to teacher and student attendance responses and dashboards.
 - Added root README.md with attendance formulas, multi-camera behavior, Mermaid flow charts, camera preview flow, privacy boundaries, and local setup.
 - Updated product and architecture context to document the minute-window attendance model.
+- Added teacher session insights derived from sightings: timeline replay, camera-zone summaries, bounded camera health, first/last-seen explanations, arrival/departure review signals, and a prioritized review queue.
+- Added a teacher-owned CSV integrity report route and dashboard download action without exposing biometric data.
 
 ## In Progress
 
 - Browser verification of one-minute coverage results, including a 50/60-minute example and multi-camera same-window deduplication.
+- Browser verification of the timeline, camera health, review queue, CSV integrity report, and camera-source deletion safeguards.
 
 ## Next Up
 

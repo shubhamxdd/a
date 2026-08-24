@@ -152,8 +152,48 @@ class StudentAttendanceSummary(BaseModel):
 
 
 class SightingResponse(BaseModel):
-    student_id: UUID
+    student_id: UUID | None
     student_name: str
     camera_source_id: UUID
     matched_at: datetime
-    face_distance: float
+    face_distance: float | None
+
+
+class StudentInsightResponse(BaseModel):
+    student_id: UUID
+    student_name: str
+    roll_number: str
+    automated_status: AttendanceStatus
+    effective_status: AttendanceStatus
+    observed_windows: int
+    eligible_windows: int
+    presence_percentage: float
+    first_seen_at: datetime | None
+    last_seen_at: datetime | None
+    cameras_seen: int
+    review_reasons: list[str] = Field(default_factory=list)
+
+
+class TimelineEventResponse(BaseModel):
+    student_name: str
+    camera_source_id: UUID
+    matched_at: datetime
+
+
+class CameraInsightResponse(BaseModel):
+    camera_source_id: UUID
+    label: str
+    sightings: int
+    students_seen: int
+    last_frame_at: datetime | None = None
+    status: str = "unknown"
+
+
+class SessionInsightsResponse(BaseModel):
+    session_id: UUID
+    session_title: str
+    duration_seconds: int
+    timeline: list[TimelineEventResponse]
+    students: list[StudentInsightResponse]
+    cameras: list[CameraInsightResponse]
+    review_queue: list[StudentInsightResponse]

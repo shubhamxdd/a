@@ -8,6 +8,7 @@ import type {
   CameraSource,
   CameraSourceType,
   Classroom,
+  SessionInsights,
   Sighting,
   User,
 } from './types'
@@ -100,6 +101,8 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(input),
     }),
+  deleteCamera: (classId: string, cameraId: string) =>
+    request<void>(`/classes/${classId}/camera-sources/${cameraId}`, { method: 'DELETE' }),
   listSessions: (classId: string) => request<AttendanceSession[]>(`/classes/${classId}/sessions`),
   startSession: (classId: string, title: string) =>
     request<AttendanceSession>(`/classes/${classId}/sessions`, {
@@ -113,6 +116,8 @@ export const api = {
   previewCamera: (sessionId: string, cameraId: string) =>
     requestBlob(`/sessions/${sessionId}/cameras/${cameraId}/preview`),
   listSightings: (sessionId: string) => request<Sighting[]>(`/sessions/${sessionId}/sightings`),
+  sessionInsights: (sessionId: string) => request<SessionInsights>(`/sessions/${sessionId}/insights`),
+  downloadReport: (sessionId: string) => requestBlob(`/sessions/${sessionId}/report.csv`),
   studentAttendance: () => request<AttendanceSummary>('/student/attendance'),
   overrideAttendance: (sessionId: string, studentId: string, status: AttendanceStatus, reason: string) =>
     request<AttendanceOverride>(`/sessions/${sessionId}/attendance/${studentId}`, {

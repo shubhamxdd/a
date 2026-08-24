@@ -106,3 +106,43 @@ export interface Sighting {
   matched_at: string
   face_distance: number
 }
+
+export interface StudentInsight {
+  student_id: string
+  student_name: string
+  roll_number: string
+  automated_status: AttendanceStatus
+  effective_status: AttendanceStatus
+  observed_windows: number
+  eligible_windows: number
+  presence_percentage: number
+  first_seen_at: string | null
+  last_seen_at: string | null
+  cameras_seen: number
+  review_reasons: string[]
+}
+
+export interface TimelineEvent {
+  student_name: string
+  camera_source_id: string
+  matched_at: string
+}
+
+export interface CameraInsight {
+  camera_source_id: string
+  label: string
+  sightings: number
+  students_seen: number
+  last_frame_at: string | null
+  status: string
+}
+
+export interface SessionInsights {
+  session_id: string
+  session_title: string
+  duration_seconds: number
+  timeline: TimelineEvent[]
+  students: StudentInsight[]
+  cameras: CameraInsight[]
+  review_queue: StudentInsight[]
+}
