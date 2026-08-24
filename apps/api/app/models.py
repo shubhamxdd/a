@@ -33,6 +33,17 @@ class CameraSourceType(str, enum.Enum):
     VIDEO_FILE = "video_file"
 
 
+class SessionStatus(str, enum.Enum):
+    ACTIVE = "active"
+    COMPLETED = "completed"
+
+
+class AttendanceStatus(str, enum.Enum):
+    PRESENT = "present"
+    LATE = "late"
+    ABSENT = "absent"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -98,6 +109,9 @@ class Classroom(Base):
     camera_sources: Mapped[list[CameraSource]] = relationship(
         back_populates="classroom", cascade="all, delete-orphan"
     )
+    sessions: Mapped[list[AttendanceSession]] = relationship(
+        back_populates="classroom", cascade="all, delete-orphan"
+    )
 
 
 class ClassMembership(Base):
@@ -130,3 +144,50 @@ class CameraSource(Base):
     )
 
     classroom: Mapped[Classroom] = relationship(back_populates="camera_sources")
+
+
+class AttendanceSession(Base):
+    __tablename__ = "attendance_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    class_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("classes.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(160))
+    status: Mapped[SessionStatus] = mapped_column(Enum(SessionStatus, name="session_status"), default=SessionStatus.ACTIVE)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    grace_period_minutes: Mapped[int] = mapped_column(default=10)
+    minimum_sightings: Mapped[int] = mapped_column(default=3)
+    qualification_window_minutes: Mapped[int] = mapped_column(default=5)
+
+    classroom: Mapped[Classroom] = relationship(back_populates="sessions")
+    sightings: Mapped[list[Sighting]] = relationship(back_populates="session", cascade="all, delete-orphan")
+    attendance_records: Mapped[list[AttendanceRecord]] = relationship(
+        back_populates="session", cascade="all, delete-orphan"
+    )
+
+
+class Sighting(Base):
+    __tablename__ = "sightings"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("attendance_sessions.id", ondelete="CASCADE"), index=True)
+    student_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    camera_source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("camera_sources.id", ondelete="CASCADE"))
+    matched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    face_distance: Mapped[float] = mapped_column()
+
+    session: Mapped[AttendanceSession] = relationship(back_populates="sightings")
+
+
+class AttendanceRecord(Base):
+    __tablename__ = "attendance_records"
+    __table_args__ = (UniqueConstraint("session_id", "student_id", name="uq_session_attendance_record"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("attendance_sessions.id", ondelete="CASCADE"), index=True)
+    student_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    automated_status: Mapped[AttendanceStatus] = mapped_column(Enum(AttendanceStatus, name="attendance_status"))
+    qualifying_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    session: Mapped[AttendanceSession] = relationship(back_populates="attendance_records")

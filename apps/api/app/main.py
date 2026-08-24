@@ -8,7 +8,8 @@ from fastapi.openapi.utils import get_openapi
 
 from app.config import settings
 from app.database import Base, engine
-from app.routers import auth, classes
+from app.routers import auth, classes, sessions
+from app.services.recognition import recognition_manager
 
 
 @asynccontextmanager
@@ -16,6 +17,7 @@ async def lifespan(_: FastAPI):
     settings.media_root.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
     yield
+    recognition_manager.stop_all()
 
 
 app = FastAPI(title="Smart Classroom Attendance API", version="0.1.0", lifespan=lifespan)
@@ -28,6 +30,7 @@ app.add_middleware(
 )
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(classes.router, prefix="/api/v1")
+app.include_router(sessions.router, prefix="/api/v1")
 
 
 def custom_openapi() -> dict:

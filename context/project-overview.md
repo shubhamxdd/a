@@ -13,7 +13,7 @@ A local-first hackathon application for classroom attendance using a laptop webc
 ## Core User Flow
 
 1. A teacher or student creates an account from the shared login page.
-2. A student supplies name, roll number, and three reference photos; embeddings are generated locally.
+2. A student captures three reference photos from their device camera, supplies name and roll number, and receives locally generated embeddings.
 3. A teacher creates a class and shares its join code.
 4. A student joins the class with that code.
 5. The teacher configures two camera sources and starts a class session.
@@ -26,7 +26,7 @@ A local-first hackathon application for classroom attendance using a laptop webc
 
 - One sign-in entry point with role-based routing.
 - Teacher registration protected by a demo invite code.
-- Student face enrollment from exactly three photos.
+- Student face enrollment from exactly three browser-camera captures; file upload remains an API fallback for testing.
 
 ### Attendance
 

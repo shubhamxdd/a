@@ -2,11 +2,11 @@
 
 ## Current Phase
 
-- Phase 3 implemented — ready for manual API testing
+- Phase 4 complete — ready for React web application scaffolding
 
 ## Current Goal
 
-- Manually verify classroom creation, class-code membership, and teacher-controlled camera settings.
+- Scaffold the React web application and implement the shared authentication/onboarding shell.
 
 ## Completed
 
@@ -25,14 +25,26 @@
 - Implemented teacher-owned classes, unique join codes, student class memberships, and role-aware class listing.
 - Implemented teacher-only camera-source create, list, and update APIs supporting webcam indexes, IP-camera URLs, and video-file paths.
 - Verified the new ORM mappings, database table creation, API startup, OpenAPI class routes, and Ruff checks against PostgreSQL.
+- Implemented attendance-session, sighting, and automated attendance-record persistence.
+- Implemented one independent OpenCV/face-recognition worker per enabled camera source, sampled once per second with a face-distance threshold below `0.5`.
+- Implemented five-second cross-camera (not same-camera) de-duplication and final Present/Late/Absent calculation using the agreed rolling five-minute, three-sighting rule.
+- Added a teacher-only live-sightings endpoint for recognition verification before a session ends.
+- Added an OpenCV camera-preview utility to visually validate webcam, IP-stream, and video-file sources outside the attendance worker.
+- Added a disposable end-to-end demo setup and annotated live-recognition preview script using `student.jpg` as three enrollment references.
+- Updated the demo setup script to generate validator-compatible demo email addresses and expose API validation details when setup fails.
+- Decided that the React student onboarding flow will capture three photos directly from the browser camera; API file upload remains a fallback and test interface.
+- Verified session API table creation and routes, Ruff checks, and deterministic attendance qualification logic.
+- Manually verified Phase 4 live recognition and attendance workers with enrolled reference images and a camera source.
 
 ## In Progress
 
-- Manual Phase 3 API verification in Swagger or curl.
+- No implementation currently in progress.
 
 ## Next Up
 
-- After manual verification, commit Phase 3 and implement attendance sessions plus camera workers.
+- Scaffold the Vite, React, TypeScript, and Tailwind web application.
+- Implement the shared authentication flow and role-based routing.
+- Implement browser-camera capture of exactly three student enrollment photos.
 
 ## Open Questions
 
@@ -48,4 +60,5 @@
 
 - `face_recognition_models` requires `setuptools<81` because it still imports `pkg_resources`; this compatibility pin is captured in `apps/api/requirements.txt`.
 - Camera sources are web-app configuration managed by teachers. OpenCV supports local indexes, IP-camera URLs, and video-file paths through the same source field.
-- A live student-enrollment request still needs manual verification with three real reference images; no biometric test images were created during backend verification.
+- Live student enrollment and recognition have been manually verified with real reference images and a camera source; local biometric media remains untracked and must not be committed.
+- Start a session only after a class has at least one enabled camera source; recognition workers run inside the FastAPI process and stop when the session stops or the API shuts down.

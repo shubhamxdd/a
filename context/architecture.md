@@ -4,7 +4,7 @@
 
 | Layer | Technology | Role |
 | --- | --- | --- |
-| Web | Vite, React, TypeScript, Tailwind CSS | Role-based teacher and student interface |
+| Web | Vite, React, TypeScript, Tailwind CSS, browser `getUserMedia` | Role-based interface and guided enrollment-photo capture |
 | API | FastAPI, SQLAlchemy | REST API, authentication, session orchestration |
 | Recognition | Python, face_recognition, OpenCV | Enrollment encoding and independent camera workers |
 | Database | PostgreSQL via Docker Compose | Users, classes, sessions, sightings, attendance, audit events |
