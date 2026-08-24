@@ -13,7 +13,9 @@ from app.models import (
     AttendanceOverrideEvent,
     AttendanceRecord,
     AttendanceSession,
+    AttendanceStatus,
     CameraSource,
+    ClassMembership,
     Classroom,
     SessionStatus,
     Sighting,
@@ -29,6 +31,8 @@ from app.schemas import (
     AttendanceSessionCreate,
     AttendanceSessionResponse,
     SightingResponse,
+    StudentAttendanceEntry,
+    StudentAttendanceSummary,
 )
 from app.security import require_role
 from app.services.attendance import calculate_attendance
@@ -37,6 +41,7 @@ from app.services.recognition import recognition_manager
 router = APIRouter(tags=["attendance sessions"])
 DbSession = Annotated[Session, Depends(get_db)]
 TeacherUser = Annotated[User, Depends(require_role(UserRole.TEACHER))]
+StudentUser = Annotated[User, Depends(require_role(UserRole.STUDENT))]
 
 
 def serialize_session(session: AttendanceSession) -> AttendanceSessionResponse:
@@ -220,6 +225,66 @@ def override_attendance(
     db.commit()
     db.refresh(event)
     return serialize_override(event, teacher)
+
+
+@router.get("/student/attendance", response_model=StudentAttendanceSummary)
+def student_attendance_history(student: StudentUser, db: DbSession) -> StudentAttendanceSummary:
+    """Return only this student's completed, joined-class attendance history."""
+    rows = db.execute(
+        select(AttendanceRecord, AttendanceSession, Classroom)
+        .join(AttendanceSession, AttendanceSession.id == AttendanceRecord.session_id)
+        .join(Classroom, Classroom.id == AttendanceSession.class_id)
+        .join(
+            ClassMembership,
+            (ClassMembership.class_id == Classroom.id)
+            & (ClassMembership.student_id == student.id),
+        )
+        .where(
+            AttendanceRecord.student_id == student.id,
+            AttendanceSession.status == SessionStatus.COMPLETED,
+        )
+        .order_by(AttendanceSession.started_at.desc())
+    ).all()
+    override_rows = db.execute(
+        select(AttendanceOverrideEvent)
+        .where(AttendanceOverrideEvent.student_id == student.id)
+        .order_by(AttendanceOverrideEvent.created_at.desc(), AttendanceOverrideEvent.id.desc())
+    ).scalars().all()
+    latest_overrides: dict[UUID, AttendanceOverrideEvent] = {}
+    for event in override_rows:
+        latest_overrides.setdefault(event.session_id, event)
+
+    history: list[StudentAttendanceEntry] = []
+    for record, session, classroom in rows:
+        effective_status = latest_overrides.get(record.session_id)
+        history.append(
+            StudentAttendanceEntry(
+                session_id=session.id,
+                class_id=classroom.id,
+                class_name=classroom.name,
+                session_title=session.title,
+                session_started_at=session.started_at,
+                session_ended_at=session.ended_at,
+                automated_status=record.automated_status,
+                effective_status=effective_status.corrected_status if effective_status else record.automated_status,
+                qualifying_at=record.qualifying_at,
+            )
+        )
+
+    present_sessions = sum(entry.effective_status is AttendanceStatus.PRESENT for entry in history)
+    late_sessions = sum(entry.effective_status is AttendanceStatus.LATE for entry in history)
+    absent_sessions = sum(entry.effective_status is AttendanceStatus.ABSENT for entry in history)
+    total_sessions = len(history)
+    attended_sessions = present_sessions + late_sessions
+    return StudentAttendanceSummary(
+        total_sessions=total_sessions,
+        attended_sessions=attended_sessions,
+        present_sessions=present_sessions,
+        late_sessions=late_sessions,
+        absent_sessions=absent_sessions,
+        attendance_percentage=round(attended_sessions / total_sessions * 100, 1) if total_sessions else 0.0,
+        history=history,
+    )
 
 
 @router.get("/sessions/{session_id}/sightings", response_model=list[SightingResponse])

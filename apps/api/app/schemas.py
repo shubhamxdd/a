@@ -122,6 +122,28 @@ class AttendanceRecordResponse(BaseModel):
     override_history: list[AttendanceOverrideResponse] = Field(default_factory=list)
 
 
+class StudentAttendanceEntry(BaseModel):
+    session_id: UUID
+    class_id: UUID
+    class_name: str
+    session_title: str
+    session_started_at: datetime
+    session_ended_at: datetime | None
+    automated_status: AttendanceStatus
+    effective_status: AttendanceStatus
+    qualifying_at: datetime | None
+
+
+class StudentAttendanceSummary(BaseModel):
+    total_sessions: int
+    attended_sessions: int
+    present_sessions: int
+    late_sessions: int
+    absent_sessions: int
+    attendance_percentage: float
+    history: list[StudentAttendanceEntry]
+
+
 class SightingResponse(BaseModel):
     student_id: UUID
     student_name: str

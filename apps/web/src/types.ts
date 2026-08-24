@@ -70,6 +70,28 @@ export interface AttendanceRecord {
   override_history: AttendanceOverride[]
 }
 
+export interface AttendanceSummary {
+  total_sessions: number
+  attended_sessions: number
+  present_sessions: number
+  late_sessions: number
+  absent_sessions: number
+  attendance_percentage: number
+  history: AttendanceHistoryEntry[]
+}
+
+export interface AttendanceHistoryEntry {
+  session_id: string
+  class_id: string
+  class_name: string
+  session_title: string
+  session_started_at: string
+  session_ended_at: string | null
+  automated_status: AttendanceStatus
+  effective_status: AttendanceStatus
+  qualifying_at: string | null
+}
+
 export interface Sighting {
   student_id: string
   student_name: string

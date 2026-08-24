@@ -3,6 +3,7 @@ import type {
   AttendanceRecord,
   AttendanceSession,
   AttendanceStatus,
+  AttendanceSummary,
   AuthSession,
   CameraSource,
   CameraSourceType,
@@ -101,6 +102,7 @@ export const api = {
   listAttendance: (sessionId: string) =>
     request<AttendanceRecord[]>(`/sessions/${sessionId}/attendance`),
   listSightings: (sessionId: string) => request<Sighting[]>(`/sessions/${sessionId}/sightings`),
+  studentAttendance: () => request<AttendanceSummary>('/student/attendance'),
   overrideAttendance: (sessionId: string, studentId: string, status: AttendanceStatus, reason: string) =>
     request<AttendanceOverride>(`/sessions/${sessionId}/attendance/${studentId}`, {
       method: 'PATCH',
