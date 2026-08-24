@@ -24,6 +24,8 @@
 - Corrected the student-upload OpenAPI schema so Swagger renders `photos` as binary file inputs rather than text strings.
 - Implemented teacher-owned classes, unique join codes, student class memberships, and role-aware class listing.
 - Implemented teacher-only camera-source create, list, and update APIs supporting webcam indexes, IP-camera URLs, and video-file paths.
+- Connected camera-source updates to the teacher UI, including edit, enable, and disable controls.
+- Connected live sightings polling to a bounded recent-recognitions panel in the teacher workspace.
 - Verified the new ORM mappings, database table creation, API startup, OpenAPI class routes, and Ruff checks against PostgreSQL.
 - Implemented attendance-session, sighting, and automated attendance-record persistence.
 - Implemented one independent OpenCV/face-recognition worker per enabled camera source, sampled once per second with a face-distance threshold below `0.5`.

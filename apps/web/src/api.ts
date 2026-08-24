@@ -95,7 +95,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-  updateCamera: (classId: string, cameraId: string, input: Partial<CameraSource>) =>
+  updateCamera: (classId: string, cameraId: string, input: Partial<Pick<CameraSource, 'label' | 'source_type' | 'source' | 'is_enabled'>>) =>
     request<CameraSource>(`/classes/${classId}/camera-sources/${cameraId}`, {
       method: 'PATCH',
       body: JSON.stringify(input),
