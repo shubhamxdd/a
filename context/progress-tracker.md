@@ -44,21 +44,21 @@
 - Implemented student class-code joining and membership cards.
 - Added an explicitly typed API client for existing authentication, class, camera, session, sighting, attendance, and override contracts.
 - Enlarged student enrollment camera preview for better self-framing and added camera/upload/mixed enrollment options with retake controls.
-- Added a teacher-facing live local webcam preview that activates during an attendance session and shows source state/errors.
+- Replaced the competing browser `getUserMedia` teacher preview with a teacher-authenticated preview endpoint backed by the active recognition worker's latest JPEG frame.
+- Added bounded in-memory preview frame cleanup when sessions stop; the same preview path supports webcam, IP-stream, and video-file workers.
 - Added student-only attendance history and summary analytics with membership ownership checks; effective statuses reflect latest teacher corrections without exposing other students.
 - Connected the student dashboard to attendance percentage, attended/late/session metrics, and per-session history.
 - Verified the API and frontend builds after the attendance analytics addition.
 
 ## In Progress
 
-- Student attendance history and percentage analytics implementation and browser verification.
+- Teacher live camera feed fix and browser verification with an active recognition session.
 
 ## Next Up
 
 - Verify the browser camera preview and uploaded image paths on desktop and mobile-sized layouts.
 - Verify the teacher preview with the local webcam during an active recognition session.
 - Exercise student attendance history with completed sessions and teacher overrides.
-- Add an authenticated backend frame stream for remote IP-camera/video-file previews if teachers need to view non-local sources in-browser.
 - Refine any UI/API integration issues found during browser testing.
 
 ## Open Questions

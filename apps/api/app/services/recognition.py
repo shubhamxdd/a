@@ -30,6 +30,7 @@ DEDUPLICATION_WINDOW = timedelta(seconds=5)
 
 @dataclass
 class WorkerHandle:
+    camera_id: UUID
     stop_event: threading.Event
     thread: threading.Thread
 
@@ -87,6 +88,7 @@ def run_worker(
                 stop_event.wait(0.5)
                 continue
 
+            recognition_manager.publish_frame(session_id, camera.id, frame)
             small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
             rgb_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
             locations = face_recognition.face_locations(rgb_frame)
@@ -109,7 +111,19 @@ class RecognitionManager:
 
     def __init__(self) -> None:
         self._workers: dict[UUID, list[WorkerHandle]] = {}
+        self._preview_frames: dict[tuple[UUID, UUID], bytes] = {}
         self._lock = threading.Lock()
+
+    def publish_frame(self, session_id: UUID, camera_id: UUID, frame: np.ndarray) -> None:
+        """Keep one bounded JPEG preview per worker without retaining raw frame history."""
+        encoded, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 78])
+        if encoded:
+            with self._lock:
+                self._preview_frames[(session_id, camera_id)] = buffer.tobytes()
+
+    def get_preview_frame(self, session_id: UUID, camera_id: UUID) -> bytes | None:
+        with self._lock:
+            return self._preview_frames.get((session_id, camera_id))
 
     def start_session(self, session_id: UUID) -> int:
         with self._lock, SessionLocal() as db:
@@ -136,13 +150,15 @@ class RecognitionManager:
                     name=f"recognition-{session_id}-{camera.id}",
                 )
                 thread.start()
-                handles.append(WorkerHandle(stop_event=stop_event, thread=thread))
+                handles.append(WorkerHandle(camera_id=camera.id, stop_event=stop_event, thread=thread))
             self._workers[session_id] = handles
             return len(handles)
 
     def stop_session(self, session_id: UUID) -> None:
         with self._lock:
             handles = self._workers.pop(session_id, [])
+            for handle in handles:
+                self._preview_frames.pop((session_id, handle.camera_id), None)
         for handle in handles:
             handle.stop_event.set()
         for handle in handles:

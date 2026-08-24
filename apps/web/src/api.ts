@@ -51,6 +51,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>
 }
 
+async function requestBlob(path: string): Promise<Blob> {
+  const headers = new Headers()
+  const token = authStore.getToken()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const response = await fetch(`${API_BASE_URL}${path}`, { headers, cache: 'no-store' })
+  if (!response.ok) throw new ApiError(response.status === 404 ? 'Camera frame is not ready.' : 'Unable to load camera frame.', response.status)
+  return response.blob()
+}
+
 export const api = {
   me: () => request<User>('/auth/me'),
   login: (email: string, password: string) =>
@@ -101,6 +110,8 @@ export const api = {
     request<AttendanceSession>(`/sessions/${sessionId}/stop`, { method: 'POST' }),
   listAttendance: (sessionId: string) =>
     request<AttendanceRecord[]>(`/sessions/${sessionId}/attendance`),
+  previewCamera: (sessionId: string, cameraId: string) =>
+    requestBlob(`/sessions/${sessionId}/cameras/${cameraId}/preview`),
   listSightings: (sessionId: string) => request<Sighting[]>(`/sessions/${sessionId}/sightings`),
   studentAttendance: () => request<AttendanceSummary>('/student/attendance'),
   overrideAttendance: (sessionId: string, studentId: string, status: AttendanceStatus, reason: string) =>

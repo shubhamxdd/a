@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -225,6 +225,28 @@ def override_attendance(
     db.commit()
     db.refresh(event)
     return serialize_override(event, teacher)
+
+
+@router.get("/sessions/{session_id}/cameras/{camera_id}/preview")
+def preview_camera_frame(
+    session_id: UUID, camera_id: UUID, teacher: TeacherUser, db: DbSession
+) -> Response:
+    session = get_owned_session(session_id, teacher, db)
+    if session.status is not SessionStatus.ACTIVE:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="The attendance session is not active.")
+    camera = db.scalar(
+        select(CameraSource).where(
+            CameraSource.id == camera_id,
+            CameraSource.class_id == session.class_id,
+            CameraSource.is_enabled.is_(True),
+        )
+    )
+    if camera is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera source not found.")
+    frame = recognition_manager.get_preview_frame(session.id, camera.id)
+    if frame is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera frame is not ready.")
+    return Response(content=frame, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
 
 
 @router.get("/student/attendance", response_model=StudentAttendanceSummary)
