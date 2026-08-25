@@ -165,7 +165,7 @@ Corrections are available only after a session is completed. Select **Edit**, ch
 
 - The class duration is calculated automatically from session start to stop time.
 - Presence is calculated from distinct time windows, not raw detection count.
-- Repeated sightings or sightings from multiple cameras in the same window count once.
+- The teacher chooses the attendance window size before starting a session: 1, 2, 5, 10, 15, 30, or 60 minutes. A student is credited once per configured window when recognized or manually assigned an unknown detection in that window.
 - A camera outage can reduce the available evidence; inspect camera health and review flags before accepting borderline results.
 
 ## Project layout

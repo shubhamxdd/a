@@ -26,22 +26,24 @@ LATE_THRESHOLD_PERCENTAGE = 30.0
 
 
 def session_window_count(session: AttendanceSession) -> int:
-    """Return the number of one-minute windows available in a completed session."""
+    """Return the number of configured presence windows in a completed session."""
     if session.ended_at is None:
         return 0
-    duration_seconds = max(60.0, (session.ended_at - session.started_at).total_seconds())
-    return max(1, math.ceil(duration_seconds / 60))
+    window_seconds = max(1, session.qualification_window_minutes) * 60
+    duration_seconds = max(float(window_seconds), (session.ended_at - session.started_at).total_seconds())
+    return max(1, math.ceil(duration_seconds / window_seconds))
 
 
 def observed_window_indexes(session: AttendanceSession, sightings: list[Sighting]) -> set[int]:
-    """Collapse any number of camera sightings into one minute-level observation."""
+    """Collapse any number of camera sightings into one configured presence window."""
     total_windows = session_window_count(session)
+    window_seconds = max(1, session.qualification_window_minutes) * 60
     indexes: set[int] = set()
     for sighting in sightings:
         offset_seconds = (sighting.matched_at - session.started_at).total_seconds()
         if offset_seconds < 0:
             continue
-        window_index = int(offset_seconds // 60)
+        window_index = int(offset_seconds // window_seconds)
         if window_index < total_windows:
             indexes.add(window_index)
     return indexes
@@ -64,7 +66,7 @@ def status_for_sightings(
 
 
 def calculate_attendance(session: AttendanceSession, db: Session) -> list[AttendanceRecord]:
-    """Create one automated result per member using one-minute presence coverage."""
+    """Create one automated result per member using configurable presence-window coverage."""
     members = db.execute(
         select(User, StudentProfile)
         .join(ClassMembership, ClassMembership.student_id == User.id)

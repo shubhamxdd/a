@@ -53,8 +53,8 @@
 - Verified the multi-source preview UI with strict TypeScript, Vite build, and `git diff --check`.
 - Added student-only attendance history and summary analytics with membership ownership checks; effective statuses reflect latest teacher corrections without exposing other students.
 - Connected the student dashboard to attendance percentage, attended/late/session metrics, and per-session history.
-- Replaced rolling three-sighting attendance qualification with one-minute presence-window coverage across all enabled camera sources.
-- Added observed/eligible window counts and presence percentages to teacher and student attendance responses and dashboards.
+- Added teacher-controlled attendance window size (1, 2, 5, 10, 15, 30, or 60 minutes) and arrival grace inputs to session setup; both values are persisted on the session and fixed after start for reproducible review.
+- Updated presence coverage to calculate eligible and observed windows from each session's configured `qualification_window_minutes` instead of always using one-minute buckets.
 - Unknown faces are persisted as anonymous, rate-limited sightings in teacher logs without images, embeddings, or identity data. Completed-session review shows a student dropdown for each unknown event; the original event remains anonymous, an append-only assignment records teacher attribution, and the review status is recalculated from the assigned minute window.
 - Made attendance correction reasons optional in the UI and API; an empty reason is stored as `Teacher correction`, keeping the audit event valid while ensuring Save is always available.
 - Updated product and architecture context to document the minute-window attendance model.
