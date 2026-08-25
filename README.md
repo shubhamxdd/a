@@ -1,16 +1,19 @@
 # Smart Classroom Attendance
 
-Local-first, multi-camera classroom attendance with browser enrollment, teacher review, and student attendance analytics.
+Local-first, multi-camera classroom attendance with admin-managed rooms and cameras, browser enrollment, teacher review, AI-assisted attendance queries, and student attendance analytics.
 
 ## What the system does
 
+- A single invite-code-protected admin creates rooms, manages permanent room codes, and configures each room's cameras.
+- Admins can add, edit, enable, disable, and safely delete room cameras; rooms expose current availability and active-session usage.
 - Students enroll with exactly three camera captures or image uploads.
-- Teachers create classes, configure multiple camera sources, and run attendance sessions.
-- Each enabled camera is processed by an independent recognition worker.
+- Teachers create classes, enter a valid room name/code per session, and run attendance without camera-management access.
+- Each enabled camera in the selected room is processed by an independent recognition worker.
 - Raw sightings are retained for audit and debugging.
 - Attendance is calculated using one-minute presence windows, not raw detection counts.
 - Teachers can review coverage, see annotated camera feeds, and append manual corrections.
 - Teacher insights include timeline replay, camera-zone summaries and health state, first/last-seen explanations, arrival/departure signals, a review queue, and downloadable CSV integrity reports.
+- Teachers can ask bounded natural-language questions about attendance through the optional OpenRouter integration.
 - Students can view only their own classes and attendance history.
 
 ## Attendance model
@@ -42,9 +45,9 @@ The current implementation uses the completed session duration to calculate elig
 
 ```mermaid
 flowchart LR
-    A[Camera 1] --> W1[Recognition worker 1]
-    B[Camera 2] --> W2[Recognition worker 2]
-    C[Additional cameras] --> W3[Recognition worker N]
+    A[Room camera 1] --> W1[Recognition worker 1]
+    B[Room camera 2] --> W2[Recognition worker 2]
+    C[Additional room cameras] --> W3[Recognition worker N]
     W1 --> S[(Raw sightings)]
     W2 --> S
     W3 --> S
@@ -77,8 +80,10 @@ Recognized faces are shown with green boxes and student names. Unknown faces are
 
 ## Multi-camera behavior
 
-- Configure two or more sources under a class.
-- Each source runs independently.
+- The admin configures one or more sources under a physical room; each camera belongs to exactly one room.
+- Each enabled room source runs independently when a teacher starts a session in that room.
+- A room permits only one active attendance session at a time.
+- Legacy class-owned camera rows are retained only for historical compatibility and are not used by new sessions.
 - A student recognized by either camera in a minute gets one presence credit for that minute.
 - A student recognized by both cameras in the same minute still gets one credit.
 - If a source cannot be opened by the API machine, its preview remains unavailable and its worker contributes no sightings.
@@ -102,7 +107,11 @@ The API configuration includes:
 - `DATABASE_URL`: PostgreSQL connection string.
 - `JWT_SECRET`: secret used to sign login tokens.
 - `TEACHER_INVITE_CODE`: required for teacher registration.
+- `ADMIN_INVITE_CODE`: required to create the single local admin account.
+- `CORS_ORIGINS`: comma-separated browser origins allowed by the API; defaults to `http://localhost:5173`.
 - `MEDIA_ROOT`: local enrollment-photo storage directory.
+- `OPENROUTER_API_KEY`: optional key for the bounded teacher attendance assistant.
+- `OPENROUTER_MODEL`: optional OpenRouter model override.
 - `VITE_API_BASE_URL`: browser URL for the API, normally `http://localhost:8000/api/v1`.
 
 ### 2. Start PostgreSQL
@@ -142,20 +151,29 @@ Open `http://localhost:5173`.
 
 Students cannot see camera feeds, raw sightings, other students, teacher reports, embeddings, or enrollment paths.
 
+### Admin workflow
+
+1. Select **Register**, choose **Admin**, and use the configured `ADMIN_INVITE_CODE`. The local MVP permits one admin account.
+2. Create a physical room. The system generates a permanent, case-insensitive room code that can be copied or regenerated.
+3. Add one or more room cameras:
+   - **Webcam**: a local OpenCV device index such as `0`.
+   - **IP stream**: an HTTP/MJPEG or RTSP URL reachable from the FastAPI host.
+   - **Video file**: a path readable by the FastAPI process.
+4. Use the pencil action to edit a camera's label, source type, source value, and enabled state. Camera changes are blocked while the room has an active session.
+5. Enable or disable cameras directly from the camera list. A camera can be deleted only when the room is idle and it has no sighting history; disable historical cameras instead.
+6. Use room cards to monitor enabled-camera counts, availability, and current attendance-session usage.
+
 ### Teacher workflow
 
 1. Select **Register**, choose **Teacher**, and use the configured `TEACHER_INVITE_CODE`.
 2. Create a class and copy its join code for students.
-3. Add one or more camera sources:
-   - **Webcam**: a local OpenCV device index such as `0`.
-   - **IP stream**: an HTTP/MJPEG or RTSP URL reachable from the FastAPI host.
-   - **Video file**: a path readable by the FastAPI process.
-4. Use the edit button to change a source or enable/disable it. A source can be deleted only before it has attendance history and when no session is active; disable historical sources instead.
-5. Start a session with a title. The workers read enabled sources, publish annotated previews, persist confident enrolled-student sightings, and record anonymous unknown-face events at most once per camera every five seconds.
+3. Enter a session title and a valid room code or exact room name/number. Teachers may use any active room but cannot add, edit, enable, disable, or delete cameras.
+4. Start the session. The API rejects an inactive/unknown room, a room without enabled cameras, or a room already running another session.
+5. All enabled cameras in the selected room start automatically. Workers publish annotated previews, persist confident enrolled-student sightings, and record anonymous unknown-face events at most once per camera every five seconds.
 6. Select a source in **Camera feed** to inspect its latest annotated frame. Green labels indicate recognized students; red `Unknown` labels are also shown as anonymous entries in **Recent detections**.
 7. Stop the session to calculate attendance. The review table shows coverage, first/last recognition explanation, automated status, effective status, and manual correction controls. Anonymous detections appear in **Unknown attendance review** with a student list for each event. Choosing a student creates an audited attribution and refreshes that student's review coverage and derived status.
 8. Open the insights below the review area to inspect timeline replay, camera-zone totals, camera health, and the prioritized review queue.
-9. Use the download icon in attendance review to export the teacher-owned CSV integrity report.
+9. Use the download icon in attendance review to export the teacher-owned CSV integrity report, or use **Ask AI** for bounded questions about owned completed attendance records.
 
 ### Attendance correction workflow
 
@@ -192,7 +210,7 @@ The API routes are teacher-owned: `GET /sessions/{session_id}/insights` and `GET
 
 ## Feature status and limitations
 
-Implemented workflows include browser-camera enrollment, roll-number capture, role-based authentication, class membership, multi-camera recognition, webcam/IP/video sources, source editing and protected deletion, annotated previews, presence-window attendance, teacher overrides, student history, session insights, camera health summaries, review flags, and CSV reports.
+Implemented workflows include invite-code-protected single-admin onboarding, admin room/code management, room-owned webcam/IP/video camera creation and editing, protected camera deletion, room occupancy, browser-camera enrollment, roll-number capture, role-based authentication, class membership, room-based multi-camera recognition, annotated previews, configurable presence-window attendance, teacher overrides, unknown-sighting attribution, student history, session insights, camera health summaries, review flags, bounded AI attendance queries, and CSV reports.
 
 Unknown faces are persisted as anonymous operational events containing only the session, camera source, and timestamp. They are rate-limited to one event per camera every five seconds and displayed only to the owning teacher. By default they are excluded from attendance coverage, student analytics, and integrity reports. During completed-session review, a teacher may select an enrolled class student for an event; this creates a separate append-only assignment and contributes that event's time window to review coverage and the displayed derived status without changing the original anonymous sighting. No unknown-face image, embedding, distance, or inferred identity is stored.
 
@@ -201,7 +219,8 @@ The current MVP does not provide physical seating coordinates, automatic camera 
 ## Privacy and access boundaries
 
 - Students can read only their own attendance and joined classes.
-- Teachers can manage only their own classes and sessions.
+- Admins manage room and camera configuration but cannot access embeddings, passwords, biometric files, or arbitrary database data.
+- Teachers can manage only their own classes and sessions. Room cameras are read-only to teachers.
 - Embeddings, password hashes, enrollment paths, and raw biometric media are never returned to the browser.
 - Manual corrections are immutable audit events; automated attendance is never overwritten.
 
