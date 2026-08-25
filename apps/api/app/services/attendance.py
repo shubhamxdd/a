@@ -7,9 +7,6 @@ from collections import defaultdict
 from datetime import timedelta
 from uuid import UUID
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
 from app.models import (
     AttendanceRecord,
     AttendanceSession,
@@ -20,6 +17,8 @@ from app.models import (
     StudentProfile,
     User,
 )
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 PRESENT_THRESHOLD_PERCENTAGE = 70.0
 LATE_THRESHOLD_PERCENTAGE = 30.0

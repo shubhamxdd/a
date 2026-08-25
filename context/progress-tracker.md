@@ -60,6 +60,11 @@
 - Updated product and architecture context to document the minute-window attendance model.
 - Added teacher session insights derived from sightings: timeline replay, camera-zone summaries, bounded camera health, first/last-seen explanations, arrival/departure review signals, and a prioritized review queue.
 - Added a teacher-owned CSV integrity report route and dashboard download action without exposing biometric data.
+- Added a teacher-only natural-language attendance assistant using OpenRouter tool calling. The UI supports questions about dates/date ranges, students, statuses, and selected classes; the API executes only a bounded, ownership-checked attendance search and returns explainable filters, aggregates, and rows.
+- Added server-side OpenRouter configuration (`OPENROUTER_API_KEY`, model, base URL), runtime dependency, provider privacy boundary documentation, and disabled-by-default behavior when no key is configured.
+- Verified repository Ruff checks, Python compilation, TypeScript/Vite production build, and `git diff --check` after the assistant implementation.
+- Formatted teacher assistant answers in the frontend with local heading, emphasis, list, and simple table rendering while retaining the canonical structured attendance result table. Renamed the action to Ask AI and added an accessible animated gradient/loading treatment with reduced-motion support.
+- Updated the attendance assistant to always execute the bounded search tool and answer directly: unspecified class means all owned classes, unspecified student means all students, unspecified status means all statuses, and unspecified dates mean all completed sessions. Clarification loops and internal class-ID exposure are prevented.
 
 ## In Progress
 

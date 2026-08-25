@@ -38,7 +38,8 @@ A local-first hackathon application for classroom attendance using a laptop webc
 
 ### Dashboards
 
-- Teacher class, session, camera, attendance, correction, timeline, camera-zone, review-queue, and integrity-report workflows.
+- Teacher class, session, camera, attendance, correction, timeline, camera-zone, review-queue, integrity-report, and scoped natural-language attendance-query workflows.
+- Teachers can ask explainable questions such as attendance today, on a date, between dates, by status, or for a named student within a selected owned class. The parser maps supported language to bounded filters; it does not generate or execute arbitrary SQL.
 - Student personal attendance percentage and session history.
 
 ## Scope
@@ -50,7 +51,7 @@ A local-first hackathon application for classroom attendance using a laptop webc
 
 ### Out of Scope
 
-- Engagement detection, geometric camera calibration, alerts, and real multi-day trend analysis. The current camera-zone view is an operational source summary, not inferred seating or identity tracking.
+- Engagement detection, geometric camera calibration, alerts, and real predictive or inferred multi-day trend analysis. Historical attendance may be filtered and summarized through the teacher query workflow, but the MVP does not make predictions or infer trends. The current camera-zone view is an operational source summary, not inferred seating or identity tracking.
 - Hosted deployment and production-grade identity verification.
 
 ## Success Criteria

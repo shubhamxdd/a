@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     media_root: Path = Path("storage")
     cors_origins: str = "http://localhost:5173"
     access_token_expire_minutes: int = 480
+    openrouter_api_key: str | None = None
+    openrouter_model: str = "openai/gpt-4o-mini"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
 
     @property
     def cors_origin_list(self) -> list[str]:

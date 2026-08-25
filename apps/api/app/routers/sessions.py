@@ -1,9 +1,11 @@
 """Teacher-controlled attendance-session routes."""
 
+import json
 from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
@@ -27,8 +29,10 @@ from app.models import (
 )
 from app.routers.classes import get_owned_classroom
 from app.schemas import (
+    AttendanceAssistantResponse,
     AttendanceOverrideCreate,
     AttendanceOverrideResponse,
+    AttendanceQueryRequest,
     AttendanceRecordResponse,
     AttendanceSessionCreate,
     AttendanceSessionResponse,
@@ -44,6 +48,7 @@ from app.services.attendance import (
     coverage_for_record,
     status_for_sightings,
 )
+from app.services.attendance_assistant import answer_attendance_question
 from app.services.insights import build_session_insights
 from app.services.recognition import recognition_manager
 
@@ -350,6 +355,28 @@ def student_attendance_history(student: StudentUser, db: DbSession) -> StudentAt
         attendance_percentage=round(attended_sessions / total_sessions * 100, 1) if total_sessions else 0.0,
         history=history,
     )
+
+
+@router.post("/teacher/attendance-assistant", response_model=AttendanceAssistantResponse)
+async def teacher_attendance_assistant(
+    payload: AttendanceQueryRequest, teacher: TeacherUser, db: DbSession
+) -> AttendanceAssistantResponse:
+    """Interpret a teacher question with OpenRouter, then execute one bounded attendance tool."""
+    classes = db.scalars(
+        select(Classroom).where(Classroom.teacher_id == teacher.id).order_by(Classroom.name)
+    ).all()
+    if payload.class_id is not None:
+        classes = [classroom for classroom in classes if classroom.id == payload.class_id]
+        if not classes:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Class not found.")
+    available_classes = [{"id": str(classroom.id), "name": classroom.name} for classroom in classes]
+    try:
+        result = await answer_attendance_question(payload.query, teacher.id, db, available_classes)
+    except RuntimeError as error:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
+    except (httpx.HTTPError, ValueError, KeyError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="The attendance assistant could not complete this query.") from error
+    return AttendanceAssistantResponse.model_validate(result)
 
 
 @router.get("/sessions/{session_id}/insights", response_model=SessionInsightsResponse)

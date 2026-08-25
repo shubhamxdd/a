@@ -7,9 +7,6 @@ from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
 from app.models import (
     AttendanceOverrideEvent,
     AttendanceRecord,
@@ -27,6 +24,8 @@ from app.services.attendance import (
     PRESENT_THRESHOLD_PERCENTAGE,
 )
 from app.services.recognition import recognition_manager
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 
 def build_session_insights(session: AttendanceSession, db: Session) -> dict[str, object]:

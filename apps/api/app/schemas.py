@@ -209,3 +209,49 @@ class SessionInsightsResponse(BaseModel):
     students: list[StudentInsightResponse]
     cameras: list[CameraInsightResponse]
     review_queue: list[StudentInsightResponse]
+
+
+class AttendanceQueryRequest(BaseModel):
+    query: str = Field(min_length=2, max_length=500)
+    class_id: UUID | None = None
+
+
+class AttendanceQueryInterpretation(BaseModel):
+    summary: str
+    start_date: str | None = None
+    end_date: str | None = None
+    status: AttendanceStatus | None = None
+    student_name: str | None = None
+    class_name: str | None = None
+
+
+class AttendanceQueryRow(BaseModel):
+    session_id: UUID
+    class_id: UUID
+    class_name: str
+    session_title: str
+    session_started_at: datetime
+    session_ended_at: datetime | None
+    student_id: UUID
+    student_name: str
+    roll_number: str
+    automated_status: AttendanceStatus
+    effective_status: AttendanceStatus
+    observed_windows: int
+    eligible_windows: int
+    presence_percentage: float
+
+
+class AttendanceQueryResponse(BaseModel):
+    interpretation: AttendanceQueryInterpretation
+    total_matches: int
+    present_count: int
+    late_count: int
+    absent_count: int
+    average_presence_percentage: float
+    rows: list[AttendanceQueryRow]
+
+
+class AttendanceAssistantResponse(BaseModel):
+    answer: str
+    data: AttendanceQueryResponse | None = None

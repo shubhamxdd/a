@@ -99,6 +99,45 @@ export interface AttendanceHistoryEntry {
   presence_percentage: number
 }
 
+export interface AttendanceQueryRow {
+  session_id: string
+  class_id: string
+  class_name: string
+  session_title: string
+  session_started_at: string
+  session_ended_at: string | null
+  student_id: string
+  student_name: string
+  roll_number: string
+  automated_status: AttendanceStatus
+  effective_status: AttendanceStatus
+  observed_windows: number
+  eligible_windows: number
+  presence_percentage: number
+}
+
+export interface AttendanceQueryData {
+  interpretation: {
+    summary: string
+    start_date: string | null
+    end_date: string | null
+    status: AttendanceStatus | null
+    student_name: string | null
+    class_name: string | null
+  }
+  total_matches: number
+  present_count: number
+  late_count: number
+  absent_count: number
+  average_presence_percentage: number
+  rows: AttendanceQueryRow[]
+}
+
+export interface AttendanceAssistantResponse {
+  answer: string
+  data: AttendanceQueryData | null
+}
+
 export interface Sighting {
   id: string
   student_id: string | null

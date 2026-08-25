@@ -1,4 +1,5 @@
 import type {
+  AttendanceAssistantResponse,
   AttendanceOverride,
   AttendanceRecord,
   AttendanceSession,
@@ -121,6 +122,11 @@ export const api = {
   sessionInsights: (sessionId: string) => request<SessionInsights>(`/sessions/${sessionId}/insights`),
   downloadReport: (sessionId: string) => requestBlob(`/sessions/${sessionId}/report.csv`),
   studentAttendance: () => request<AttendanceSummary>('/student/attendance'),
+  teacherAttendanceAssistant: (query: string, classId?: string) =>
+    request<AttendanceAssistantResponse>('/teacher/attendance-assistant', {
+      method: 'POST',
+      body: JSON.stringify({ query, class_id: classId || null }),
+    }),
   overrideAttendance: (sessionId: string, studentId: string, status: AttendanceStatus, reason: string) =>
     request<AttendanceOverride>(`/sessions/${sessionId}/attendance/${studentId}`, {
       method: 'PATCH',

@@ -20,7 +20,7 @@
 
 ## Storage Model
 
-- **PostgreSQL**: user profiles, password hashes, classes, memberships, face-encoding metadata, camera settings, sessions, recognized-student sightings, rate-limited anonymous unknown-face events, append-only teacher sighting assignments, minute-level attendance coverage derived from recognized or teacher-assigned sightings, computed attendance, and override audit events. Timeline, camera-zone, explanation, review-queue, and report data are derived at request time.
+- PostgreSQL: user profiles, password hashes, classes, memberships, face-encoding metadata, camera settings, sessions, sightings, attendance, audit events, and teacher attendance-assistant query results derived at request time. The OpenRouter provider receives only the teacher's natural-language question, bounded class context, and returned attendance summary; it never receives database access or biometric data.
 - **Local media storage**: the three uploaded enrollment photos per student. Database rows retain safe relative paths.
 
 ## Auth and Access Model
@@ -39,3 +39,4 @@
 5. Live preview storage is bounded to one in-memory compressed frame per active camera and is removed when its session stops.
 6. Camera health is bounded to last-frame timestamps and status per active source; it is not persisted as a frame history.
 7. Teacher insight and report routes are scoped through the owned session and never expose embeddings, face images, or biometric file paths.
+8. The natural-language attendance assistant is teacher-only and uses OpenRouter tool calling. The model may request only a bounded attendance search; the API validates dates, status, student/class scope, and teacher ownership before querying PostgreSQL. Provider credentials remain server-side and the feature is disabled when no API key is configured.
