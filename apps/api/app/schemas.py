@@ -100,7 +100,7 @@ class AttendanceSessionResponse(BaseModel):
 
 class AttendanceOverrideCreate(BaseModel):
     status: AttendanceStatus
-    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=500)]
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] = "Teacher correction"
 
 
 class AttendanceOverrideResponse(BaseModel):
@@ -152,11 +152,23 @@ class StudentAttendanceSummary(BaseModel):
 
 
 class SightingResponse(BaseModel):
+    id: UUID
     student_id: UUID | None
     student_name: str
     camera_source_id: UUID
     matched_at: datetime
     face_distance: float | None
+    assigned_student_id: UUID | None = None
+    assigned_student_name: str | None = None
+
+
+class SightingAssignmentResponse(BaseModel):
+    id: UUID
+    sighting_id: UUID
+    student_id: UUID
+    student_name: str
+    teacher_id: UUID
+    created_at: datetime
 
 
 class StudentInsightResponse(BaseModel):

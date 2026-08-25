@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
 from app.config import settings
-from app.database import Base, engine, ensure_sighting_student_nullable
+from app.database import Base, engine, ensure_anonymous_sightings_compatible
 from app.routers import auth, classes, sessions
 from app.services.recognition import recognition_manager
 
@@ -16,7 +16,7 @@ from app.services.recognition import recognition_manager
 async def lifespan(_: FastAPI):
     settings.media_root.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
-    ensure_sighting_student_nullable()
+    ensure_anonymous_sightings_compatible()
     yield
     recognition_manager.stop_all()
 

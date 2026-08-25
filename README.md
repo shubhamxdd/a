@@ -88,26 +88,85 @@ The camera URL must be reachable from the machine running FastAPI, not only from
 
 ## Running locally
 
-Start PostgreSQL:
+### 1. Configure the environment
+
+Copy the environment templates and set a real JWT secret for anything beyond a disposable local demo:
+
+```bash
+cp .env.example .env
+cp apps/api/.env.example apps/api/.env
+```
+
+The API configuration includes:
+
+- `DATABASE_URL`: PostgreSQL connection string.
+- `JWT_SECRET`: secret used to sign login tokens.
+- `TEACHER_INVITE_CODE`: required for teacher registration.
+- `MEDIA_ROOT`: local enrollment-photo storage directory.
+- `VITE_API_BASE_URL`: browser URL for the API, normally `http://localhost:8000/api/v1`.
+
+### 2. Start PostgreSQL
 
 ```bash
 docker compose up -d postgres
 ```
 
-Start the API:
+### 3. Start the API
 
 ```bash
 cd apps/api
 .venv/bin/uvicorn app.main:app --reload
 ```
 
-Start the web app from the repository root:
+The API is available at `http://localhost:8000`. Check `http://localhost:8000/health` or open `http://localhost:8000/docs` for the interactive API contract.
+
+### 4. Start the web app
+
+From the repository root:
 
 ```bash
 npm run dev:web
 ```
 
 Open `http://localhost:5173`.
+
+## How To Use
+
+### Student workflow
+
+1. Select **Register**, choose **Student**, and enter full name, roll number, email, and password.
+2. Start the browser camera and capture exactly three reference photos. Individual captures can be retaken or removed before submitting.
+3. Submit registration. The API validates the photos, generates local face encodings, and signs the student in.
+4. Ask a teacher for the class join code, enter it under **Join a class**, and confirm the membership.
+5. After completed sessions, view personal attendance percentage, Present/Late/Absent counts, coverage, and session history.
+
+Students cannot see camera feeds, raw sightings, other students, teacher reports, embeddings, or enrollment paths.
+
+### Teacher workflow
+
+1. Select **Register**, choose **Teacher**, and use the configured `TEACHER_INVITE_CODE`.
+2. Create a class and copy its join code for students.
+3. Add one or more camera sources:
+   - **Webcam**: a local OpenCV device index such as `0`.
+   - **IP stream**: an HTTP/MJPEG or RTSP URL reachable from the FastAPI host.
+   - **Video file**: a path readable by the FastAPI process.
+4. Use the edit button to change a source or enable/disable it. A source can be deleted only before it has attendance history and when no session is active; disable historical sources instead.
+5. Start a session with a title. The workers read enabled sources, publish annotated previews, persist confident enrolled-student sightings, and record anonymous unknown-face events at most once per camera every five seconds.
+6. Select a source in **Camera feed** to inspect its latest annotated frame. Green labels indicate recognized students; red `Unknown` labels are also shown as anonymous entries in **Recent detections**.
+7. Stop the session to calculate attendance. The review table shows coverage, first/last recognition explanation, automated status, effective status, and manual correction controls. Anonymous detections appear in **Unknown attendance review** with a student list for each event. Choosing a student creates an audited attribution and refreshes that student's review coverage and derived status.
+8. Open the insights below the review area to inspect timeline replay, camera-zone totals, camera health, and the prioritized review queue.
+9. Use the download icon in attendance review to export the teacher-owned CSV integrity report.
+
+### Attendance correction workflow
+
+Corrections are available only after a session is completed. Select **Edit**, choose the corrected status, and provide a reason. The automated result remains unchanged and every correction is retained as an append-only audit event.
+
+### Session interpretation
+
+- The class duration is calculated automatically from session start to stop time.
+- Presence is calculated from distinct time windows, not raw detection count.
+- Repeated sightings or sightings from multiple cameras in the same window count once.
+- A camera outage can reduce the available evidence; inspect camera health and review flags before accepting borderline results.
 
 ## Project layout
 
@@ -130,6 +189,14 @@ Completed sessions expose a derived insights view without adding biometric data 
 - **Integrity report**: teachers can download a CSV containing status, coverage, timing, camera count, and review reasons. It never contains embeddings, face distances, image paths, or raw media.
 
 The API routes are teacher-owned: `GET /sessions/{session_id}/insights` and `GET /sessions/{session_id}/report.csv`.
+
+## Feature status and limitations
+
+Implemented workflows include browser-camera enrollment, roll-number capture, role-based authentication, class membership, multi-camera recognition, webcam/IP/video sources, source editing and protected deletion, annotated previews, presence-window attendance, teacher overrides, student history, session insights, camera health summaries, review flags, and CSV reports.
+
+Unknown faces are persisted as anonymous operational events containing only the session, camera source, and timestamp. They are rate-limited to one event per camera every five seconds and displayed only to the owning teacher. By default they are excluded from attendance coverage, student analytics, and integrity reports. During completed-session review, a teacher may select an enrolled class student for an event; this creates a separate append-only assignment and contributes that event's time window to review coverage and the displayed derived status without changing the original anonymous sighting. No unknown-face image, embedding, distance, or inferred identity is stored.
+
+The current MVP does not provide physical seating coordinates, automatic camera calibration, email/SMS alerts, multi-day trend dashboards, hosted deployment, or database migrations. `Base.metadata.create_all` is used for local startup schema creation.
 
 ## Privacy and access boundaries
 

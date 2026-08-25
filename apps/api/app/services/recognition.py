@@ -28,6 +28,7 @@ from app.models import (
 MATCH_DISTANCE = 0.5
 SAMPLE_INTERVAL_SECONDS = 0.5
 PREVIEW_WIDTH = 640
+UNKNOWN_EVENT_INTERVAL = timedelta(seconds=5)
 DEDUPLICATION_WINDOW = timedelta(seconds=5)
 
 
@@ -79,6 +80,36 @@ def log_sighting(session_id: UUID, student_id: UUID, camera_id: UUID, distance: 
             db.commit()
 
 
+def log_unknown_sighting(session_id: UUID, camera_id: UUID) -> None:
+    """Persist at most one anonymous event per camera every five seconds."""
+    matched_at = datetime.now(UTC)
+    with SessionLocal() as db:
+        session = db.get(AttendanceSession, session_id)
+        if session is None or session.status is not SessionStatus.ACTIVE:
+            return
+        recent_unknown = db.scalar(
+            select(Sighting.id)
+            .where(
+                Sighting.session_id == session_id,
+                Sighting.student_id.is_(None),
+                Sighting.camera_source_id == camera_id,
+                Sighting.matched_at >= matched_at - UNKNOWN_EVENT_INTERVAL,
+            )
+            .limit(1)
+        )
+        if recent_unknown is None:
+            db.add(
+                Sighting(
+                    session_id=session_id,
+                    student_id=None,
+                    camera_source_id=camera_id,
+                    matched_at=matched_at,
+                    face_distance=None,
+                )
+            )
+            db.commit()
+
+
 def run_worker(
     session_id: UUID,
     camera: CameraSource,
@@ -117,14 +148,18 @@ def run_worker(
                     top, right, bottom, left = (value * 4 for value in location)
                     label = "Unknown"
                     color = (80, 80, 220)
+                    matched = False
                     distances = face_recognition.face_distance(known_vectors, encoding)
                     if distances.size:
                         match_index = int(np.argmin(distances))
                         distance = float(distances[match_index])
                         if distance < MATCH_DISTANCE:
+                            matched = True
                             label = known_student_names[match_index]
                             color = (70, 180, 90)
                             log_sighting(session_id, known_student_ids[match_index], camera.id, distance)
+                    if not matched:
+                        log_unknown_sighting(session_id, camera.id)
                     annotations.append((top, right, bottom, left, label, color))
 
             if now - last_preview_at >= 0.1:

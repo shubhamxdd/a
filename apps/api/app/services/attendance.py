@@ -16,6 +16,7 @@ from app.models import (
     AttendanceStatus,
     ClassMembership,
     Sighting,
+    SightingAssignment,
     StudentProfile,
     User,
 )
@@ -46,6 +47,22 @@ def observed_window_indexes(session: AttendanceSession, sightings: list[Sighting
     return indexes
 
 
+def status_for_sightings(
+    session: AttendanceSession, sightings: list[Sighting]
+) -> AttendanceStatus:
+    """Calculate the review status from recognized or teacher-assigned sightings."""
+    eligible_windows = session_window_count(session)
+    observed_windows = len(observed_window_indexes(session, sightings))
+    percentage = observed_windows / eligible_windows * 100 if eligible_windows else 0.0
+    qualifying_at = min((sighting.matched_at for sighting in sightings), default=None)
+    grace_deadline = session.started_at + timedelta(minutes=session.grace_period_minutes)
+    if percentage >= PRESENT_THRESHOLD_PERCENTAGE:
+        return AttendanceStatus.PRESENT if qualifying_at and qualifying_at <= grace_deadline else AttendanceStatus.LATE
+    if percentage >= LATE_THRESHOLD_PERCENTAGE:
+        return AttendanceStatus.LATE
+    return AttendanceStatus.ABSENT
+
+
 def calculate_attendance(session: AttendanceSession, db: Session) -> list[AttendanceRecord]:
     """Create one automated result per member using one-minute presence coverage."""
     members = db.execute(
@@ -55,9 +72,17 @@ def calculate_attendance(session: AttendanceSession, db: Session) -> list[Attend
         .where(ClassMembership.class_id == session.class_id)
     ).all()
     all_sightings = db.scalars(select(Sighting).where(Sighting.session_id == session.id)).all()
+    assignments = {
+        assignment.sighting_id: assignment.student_id
+        for assignment in db.scalars(
+            select(SightingAssignment).join(Sighting, Sighting.id == SightingAssignment.sighting_id).where(Sighting.session_id == session.id)
+        ).all()
+    }
     sightings_by_student: dict[UUID, list[Sighting]] = defaultdict(list)
     for sighting in all_sightings:
-        sightings_by_student[sighting.student_id].append(sighting)
+        student_id = sighting.student_id or assignments.get(sighting.id)
+        if student_id is not None:
+            sightings_by_student[student_id].append(sighting)
 
     eligible_windows = session_window_count(session)
     grace_deadline = session.started_at + timedelta(minutes=session.grace_period_minutes)

@@ -16,14 +16,18 @@ engine = create_engine(settings.database_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
-def ensure_sighting_student_nullable() -> None:
+def ensure_anonymous_sightings_compatible() -> None:
     """Keep existing local databases compatible with anonymous recognition events."""
     if engine.dialect.name != "postgresql":
         return
     columns = {column["name"]: column for column in inspect(engine).get_columns("sightings")}
-    if columns.get("student_id", {}).get("nullable") is False:
+    nullable_columns = [
+        name for name in ("student_id", "face_distance") if columns.get(name, {}).get("nullable") is False
+    ]
+    if nullable_columns:
         with engine.begin() as connection:
-            connection.execute(text("ALTER TABLE sightings ALTER COLUMN student_id DROP NOT NULL"))
+            for column_name in nullable_columns:
+                connection.execute(text(f"ALTER TABLE sightings ALTER COLUMN {column_name} DROP NOT NULL"))
 
 
 def get_db() -> Generator[Session, None, None]:

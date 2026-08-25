@@ -18,6 +18,7 @@ from app.models import (
     CameraSource,
     ClassMembership,
     Sighting,
+    SightingAssignment,
     StudentProfile,
     User,
 )
@@ -63,8 +64,17 @@ def build_session_insights(session: AttendanceSession, db: Session) -> dict[str,
 
     by_student: dict[UUID, list[Sighting]] = defaultdict(list)
     by_camera: dict[UUID, list[Sighting]] = defaultdict(list)
+    assignments = {
+        item.sighting_id: item.student_id
+        for item in db.scalars(
+            select(SightingAssignment).join(Sighting, Sighting.id == SightingAssignment.sighting_id).where(Sighting.session_id == session.id)
+        ).all()
+    }
     for sighting in sightings:
-        by_student[sighting.student_id].append(sighting)
+        resolved_student_id = sighting.student_id or assignments.get(sighting.id)
+        if resolved_student_id is None:
+            continue
+        by_student[resolved_student_id].append(sighting)
         by_camera[sighting.camera_source_id].append(sighting)
 
     students: list[dict[str, object]] = []
@@ -137,7 +147,7 @@ def build_session_insights(session: AttendanceSession, db: Session) -> dict[str,
     names = {student.id: student.full_name for student, _profile in member_rows}
     timeline = [
         {
-            "student_name": names.get(item.student_id, "Student"),
+            "student_name": names.get(item.student_id, "Unknown face"),
             "camera_source_id": item.camera_source_id,
             "matched_at": item.matched_at,
         }

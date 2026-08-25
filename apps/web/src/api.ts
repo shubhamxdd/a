@@ -116,6 +116,8 @@ export const api = {
   previewCamera: (sessionId: string, cameraId: string) =>
     requestBlob(`/sessions/${sessionId}/cameras/${cameraId}/preview`),
   listSightings: (sessionId: string) => request<Sighting[]>(`/sessions/${sessionId}/sightings`),
+  assignUnknownSighting: (sessionId: string, sightingId: string, studentId: string) =>
+    request(`/sessions/${sessionId}/sightings/${sightingId}/assign/${studentId}`, { method: 'POST' }),
   sessionInsights: (sessionId: string) => request<SessionInsights>(`/sessions/${sessionId}/insights`),
   downloadReport: (sessionId: string) => requestBlob(`/sessions/${sessionId}/report.csv`),
   studentAttendance: () => request<AttendanceSummary>('/student/attendance'),

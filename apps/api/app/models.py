@@ -180,9 +180,22 @@ class Sighting(Base):
     student_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=True)
     camera_source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("camera_sources.id", ondelete="CASCADE"))
     matched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
-    face_distance: Mapped[float] = mapped_column()
+    face_distance: Mapped[float | None] = mapped_column(nullable=True)
 
     session: Mapped[AttendanceSession] = relationship(back_populates="sightings")
+
+
+class SightingAssignment(Base):
+    """Append-only teacher attribution of an anonymous sighting."""
+
+    __tablename__ = "sighting_assignments"
+    __table_args__ = (UniqueConstraint("sighting_id", name="uq_sighting_assignment"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    sighting_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("sightings.id", ondelete="CASCADE"), index=True)
+    student_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    teacher_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
 class AttendanceRecord(Base):

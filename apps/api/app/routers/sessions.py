@@ -20,6 +20,7 @@ from app.models import (
     Classroom,
     SessionStatus,
     Sighting,
+    SightingAssignment,
     StudentProfile,
     User,
     UserRole,
@@ -32,12 +33,17 @@ from app.schemas import (
     AttendanceSessionCreate,
     AttendanceSessionResponse,
     SessionInsightsResponse,
+    SightingAssignmentResponse,
     SightingResponse,
     StudentAttendanceEntry,
     StudentAttendanceSummary,
 )
 from app.security import require_role
-from app.services.attendance import calculate_attendance, coverage_for_record
+from app.services.attendance import (
+    calculate_attendance,
+    coverage_for_record,
+    status_for_sightings,
+)
 from app.services.insights import build_session_insights
 from app.services.recognition import recognition_manager
 
@@ -164,17 +170,28 @@ def list_attendance_records(
         overrides_by_student.setdefault(event.student_id, []).append((event, override_teacher))
 
     all_sightings = db.scalars(select(Sighting).where(Sighting.session_id == session_id)).all()
+    assigned = {
+        item.sighting_id: item.student_id
+        for item in db.scalars(
+            select(SightingAssignment).join(Sighting, Sighting.id == SightingAssignment.sighting_id).where(Sighting.session_id == session_id)
+        ).all()
+    }
     sightings_by_student: dict[UUID, list[Sighting]] = {}
     for sighting in all_sightings:
-        sightings_by_student.setdefault(sighting.student_id, []).append(sighting)
+        resolved_student_id = sighting.student_id or assigned.get(sighting.id)
+        if resolved_student_id is not None:
+            sightings_by_student.setdefault(resolved_student_id, []).append(sighting)
 
     responses: list[AttendanceRecordResponse] = []
     for record, student, profile in rows:
         override_history = overrides_by_student.get(student.id, [])
         latest = override_history[0] if override_history else None
         latest_override = serialize_override(*latest) if latest else None
+        assigned_sightings = sightings_by_student.get(student.id, [])
+        derived_status = status_for_sightings(session, assigned_sightings)
+        effective_status = latest[0].corrected_status if latest else derived_status
         observed_windows, eligible_windows, presence_percentage = coverage_for_record(
-            session, sightings_by_student.get(student.id, [])
+            session, assigned_sightings
         )
         responses.append(
             AttendanceRecordResponse(
@@ -182,7 +199,7 @@ def list_attendance_records(
                 student_name=student.full_name,
                 roll_number=profile.roll_number,
                 automated_status=record.automated_status,
-                effective_status=latest[0].corrected_status if latest else record.automated_status,
+                effective_status=effective_status,
                 qualifying_at=record.qualifying_at,
                 observed_windows=observed_windows,
                 eligible_windows=eligible_windows,
@@ -233,7 +250,7 @@ def override_attendance(
         student_id=student_id,
         teacher_id=teacher.id,
         corrected_status=payload.status,
-        reason=payload.reason.strip(),
+        reason=payload.reason.strip() or "Teacher correction",
     )
     db.add(event)
     db.commit()
@@ -362,22 +379,83 @@ def session_report(session_id: UUID, teacher: TeacherUser, db: DbSession) -> Str
     )
 
 
+@router.post(
+    "/sessions/{session_id}/sightings/{sighting_id}/assign/{student_id}",
+    response_model=SightingAssignmentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def assign_unknown_sighting(
+    session_id: UUID,
+    sighting_id: UUID,
+    student_id: UUID,
+    teacher: TeacherUser,
+    db: DbSession,
+) -> SightingAssignmentResponse:
+    """Append a teacher attribution while preserving the original anonymous event."""
+    session = get_owned_session(session_id, teacher, db)
+    if session.status is not SessionStatus.COMPLETED:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Unknown detections can be assigned after the session is completed.")
+    sighting = db.scalar(
+        select(Sighting).where(
+            Sighting.id == sighting_id,
+            Sighting.session_id == session.id,
+            Sighting.student_id.is_(None),
+        )
+    )
+    if sighting is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown detection not found.")
+    existing = db.scalar(select(SightingAssignment.id).where(SightingAssignment.sighting_id == sighting.id))
+    if existing is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This detection has already been assigned.")
+    student = db.scalar(
+        select(User)
+        .join(ClassMembership, ClassMembership.student_id == User.id)
+        .where(ClassMembership.class_id == session.class_id, User.id == student_id)
+    )
+    if student is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student is not enrolled in this class.")
+    assignment = SightingAssignment(sighting_id=sighting.id, student_id=student.id, teacher_id=teacher.id)
+    db.add(assignment)
+    db.commit()
+    db.refresh(assignment)
+    return SightingAssignmentResponse(
+        id=assignment.id,
+        sighting_id=sighting.id,
+        student_id=student.id,
+        student_name=student.full_name,
+        teacher_id=teacher.id,
+        created_at=assignment.created_at,
+    )
+
+
 @router.get("/sessions/{session_id}/sightings", response_model=list[SightingResponse])
 def list_sightings(session_id: UUID, teacher: TeacherUser, db: DbSession) -> list[SightingResponse]:
     get_owned_session(session_id, teacher, db)
     rows = db.execute(
         select(Sighting, User)
-        .join(User, User.id == Sighting.student_id)
+        .outerjoin(User, User.id == Sighting.student_id)
         .where(Sighting.session_id == session_id)
         .order_by(Sighting.matched_at.desc())
     ).all()
+    assignments = {
+        assignment.sighting_id: (assignment, student)
+        for assignment, student in db.execute(
+            select(SightingAssignment, User)
+            .join(User, User.id == SightingAssignment.student_id)
+            .join(Sighting, Sighting.id == SightingAssignment.sighting_id)
+            .where(Sighting.session_id == session_id)
+        ).all()
+    }
     return [
         SightingResponse(
-            student_id=user.id,
-            student_name=user.full_name,
+            id=sighting.id,
+            student_id=user.id if user else None,
+            student_name=user.full_name if user else "Unknown face",
             camera_source_id=sighting.camera_source_id,
             matched_at=sighting.matched_at,
             face_distance=sighting.face_distance,
+            assigned_student_id=assignments[sighting.id][0].student_id if sighting.id in assignments else None,
+            assigned_student_name=assignments[sighting.id][1].full_name if sighting.id in assignments else None,
         )
         for sighting, user in rows
     ]

@@ -100,11 +100,14 @@ export interface AttendanceHistoryEntry {
 }
 
 export interface Sighting {
-  student_id: string
+  id: string
+  student_id: string | null
   student_name: string
   camera_source_id: string
   matched_at: string
-  face_distance: number
+  face_distance: number | null
+  assigned_student_id: string | null
+  assigned_student_name: string | null
 }
 
 export interface StudentInsight {

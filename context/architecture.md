@@ -20,7 +20,7 @@
 
 ## Storage Model
 
-- **PostgreSQL**: user profiles, password hashes, classes, memberships, face-encoding metadata, camera settings, sessions, raw sightings, minute-level attendance coverage derived from sightings, computed attendance, and override audit events. Timeline, camera-zone, explanation, review-queue, and report data are derived at request time.
+- **PostgreSQL**: user profiles, password hashes, classes, memberships, face-encoding metadata, camera settings, sessions, recognized-student sightings, rate-limited anonymous unknown-face events, append-only teacher sighting assignments, minute-level attendance coverage derived from recognized or teacher-assigned sightings, computed attendance, and override audit events. Timeline, camera-zone, explanation, review-queue, and report data are derived at request time.
 - **Local media storage**: the three uploaded enrollment photos per student. Database rows retain safe relative paths.
 
 ## Auth and Access Model
@@ -34,7 +34,7 @@
 
 1. Camera workers are independent and communicate only through persisted sightings; attendance collapses sightings into one credit per student per one-minute window.
 2. Raw automated attendance is never overwritten by a teacher correction; corrections create immutable audit events.
-3. A match at face distance `>= 0.5` cannot create a student sighting.
+3. A match at face distance `>= 0.5` cannot create a student sighting; it may create only an anonymous camera/timestamp event, rate-limited to once per camera every five seconds. Anonymous events do not enter attendance until an owning teacher explicitly assigns an event to an enrolled class student; attribution is append-only and does not mutate the source event.
 4. Enrollment images remain local and embeddings are generated before a student can participate in attendance.
 5. Live preview storage is bounded to one in-memory compressed frame per active camera and is removed when its session stops.
 6. Camera health is bounded to last-frame timestamps and status per active source; it is not persisted as a frame history.

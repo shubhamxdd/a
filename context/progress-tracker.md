@@ -25,7 +25,7 @@
 - Implemented teacher-owned classes, unique join codes, student class memberships, and role-aware class listing.
 - Implemented teacher-only camera-source create, list, and update APIs supporting webcam indexes, IP-camera URLs, and video-file paths.
 - Connected camera-source updates to the teacher UI, including edit, enable, disable, and protected delete controls.
-- Connected live sightings polling to a bounded recent-recognitions panel in the teacher workspace.
+- Connected live sightings polling to a bounded recent-detections panel in the teacher workspace, including recognized students and anonymous unknown faces.
 - Verified the new ORM mappings, database table creation, API startup, OpenAPI class routes, and Ruff checks against PostgreSQL.
 - Implemented attendance-session, sighting, and automated attendance-record persistence.
 - Implemented one independent OpenCV/face-recognition worker per enabled camera source, sampled once per second with a face-distance threshold below `0.5`.
@@ -55,7 +55,8 @@
 - Connected the student dashboard to attendance percentage, attended/late/session metrics, and per-session history.
 - Replaced rolling three-sighting attendance qualification with one-minute presence-window coverage across all enabled camera sources.
 - Added observed/eligible window counts and presence percentages to teacher and student attendance responses and dashboards.
-- Added root README.md with attendance formulas, multi-camera behavior, Mermaid flow charts, camera preview flow, privacy boundaries, and local setup.
+- Unknown faces are persisted as anonymous, rate-limited sightings in teacher logs without images, embeddings, or identity data. Completed-session review shows a student dropdown for each unknown event; the original event remains anonymous, an append-only assignment records teacher attribution, and the review status is recalculated from the assigned minute window.
+- Made attendance correction reasons optional in the UI and API; an empty reason is stored as `Teacher correction`, keeping the audit event valid while ensuring Save is always available.
 - Updated product and architecture context to document the minute-window attendance model.
 - Added teacher session insights derived from sightings: timeline replay, camera-zone summaries, bounded camera health, first/last-seen explanations, arrival/departure review signals, and a prioritized review queue.
 - Added a teacher-owned CSV integrity report route and dashboard download action without exposing biometric data.
@@ -63,10 +64,11 @@
 ## In Progress
 
 - Browser verification of one-minute coverage results, including a 50/60-minute example and multi-camera same-window deduplication.
-- Browser verification of the timeline, camera health, review queue, CSV integrity report, and camera-source deletion safeguards.
+- Browser verification of the timeline, camera health, review queue, CSV integrity report, camera-source deletion safeguards, and rate-limited unknown-face logs.
 
 ## Next Up
 
+- Verify anonymous unknown-face events with a live camera, including five-second per-camera throttling and exclusion from attendance coverage.
 - Verify the browser camera preview and uploaded image paths on desktop and mobile-sized layouts.
 - Verify the teacher preview with the local webcam during an active recognition session.
 - Verify the one-minute coverage calculation with a completed 60-minute session and multiple camera sources.
