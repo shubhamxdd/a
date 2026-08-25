@@ -8,7 +8,7 @@ from uuid import UUID
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -20,6 +20,7 @@ from app.models import (
     CameraSource,
     ClassMembership,
     Classroom,
+    Room,
     SessionStatus,
     Sighting,
     SightingAssignment,
@@ -36,6 +37,7 @@ from app.schemas import (
     AttendanceRecordResponse,
     AttendanceSessionCreate,
     AttendanceSessionResponse,
+    CameraSourceResponse,
     SessionInsightsResponse,
     SightingAssignmentResponse,
     SightingResponse,
@@ -62,6 +64,9 @@ def serialize_session(session: AttendanceSession) -> AttendanceSessionResponse:
     return AttendanceSessionResponse(
         id=session.id,
         class_id=session.class_id,
+        room_id=session.room_id,
+        room_name=session.room.name if session.room else None,
+        room_code=session.room.room_code if session.room else None,
         title=session.title,
         status=session.status,
         started_at=session.started_at,
@@ -94,6 +99,19 @@ def get_owned_session(session_id: UUID, teacher: User, db: Session) -> Attendanc
     return session
 
 
+@router.get("/teacher/rooms/{room_code}/cameras", response_model=list[CameraSourceResponse])
+def teacher_room_cameras(room_code: str, _teacher: TeacherUser, db: DbSession) -> list[CameraSourceResponse]:
+    room = db.scalar(
+        select(Room).where(
+            (func.lower(Room.room_code) == room_code.strip().lower())
+            | (func.lower(Room.name) == room_code.strip().lower()),
+            Room.is_active.is_(True),
+        )
+    )
+    if room is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid or inactive room code.")
+    cameras = db.scalars(select(CameraSource).where(CameraSource.room_id == room.id, CameraSource.is_enabled.is_(True)).order_by(CameraSource.created_at)).all()
+    return [CameraSourceResponse(id=camera.id, label=camera.label, source_type=camera.source_type, source=camera.source, is_enabled=camera.is_enabled, created_at=camera.created_at, updated_at=camera.updated_at) for camera in cameras]
 @router.post(
     "/classes/{class_id}/sessions",
     response_model=AttendanceSessionResponse,
@@ -108,14 +126,32 @@ def start_session(
     )
     if existing is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This class already has an active session.")
+    room = db.scalar(
+        select(Room).where(
+            (func.lower(Room.room_code) == payload.room_code.strip().lower())
+            | (func.lower(Room.name) == payload.room_code.strip().lower()),
+            Room.is_active.is_(True),
+        )
+    )
+    if room is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid or inactive room code.")
+    room_in_use = db.scalar(
+        select(AttendanceSession.id).where(
+            AttendanceSession.room_id == room.id,
+            AttendanceSession.status == SessionStatus.ACTIVE,
+        )
+    )
+    if room_in_use is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This room already has an active attendance session.")
     enabled_camera_count = db.scalar(
-        select(CameraSource.id).where(CameraSource.class_id == class_id, CameraSource.is_enabled.is_(True)).limit(1)
+        select(CameraSource.id).where(CameraSource.room_id == room.id, CameraSource.is_enabled.is_(True)).limit(1)
     )
     if enabled_camera_count is None:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Enable at least one camera source first.")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="This room has no enabled camera sources.")
 
     session = AttendanceSession(
         class_id=classroom.id,
+        room_id=room.id,
         title=payload.title.strip(),
         started_at=datetime.now(UTC),
         grace_period_minutes=payload.grace_period_minutes,
@@ -273,7 +309,7 @@ def preview_camera_frame(
     camera = db.scalar(
         select(CameraSource).where(
             CameraSource.id == camera_id,
-            CameraSource.class_id == session.class_id,
+            CameraSource.room_id == session.room_id,
             CameraSource.is_enabled.is_(True),
         )
     )

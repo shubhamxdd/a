@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     )
     jwt_secret: str = "replace-this-development-secret-before-sharing"
     teacher_invite_code: str = "SMART-TEACHER-DEMO"
+    admin_invite_code: str = "SMART-ADMIN-DEMO"
     media_root: Path = Path("storage")
     cors_origins: str = "http://localhost:5173"
     access_token_expire_minutes: int = 480

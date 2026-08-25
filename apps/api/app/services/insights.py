@@ -48,7 +48,13 @@ def build_session_insights(session: AttendanceSession, db: Session) -> dict[str,
         select(Sighting).where(Sighting.session_id == session.id).order_by(Sighting.matched_at)
     ).all()
     cameras = db.scalars(
-        select(CameraSource).where(CameraSource.class_id == session.class_id).order_by(CameraSource.created_at)
+        select(CameraSource)
+        .where(
+            CameraSource.room_id == session.room_id
+            if session.room_id is not None
+            else CameraSource.class_id == session.class_id
+        )
+        .order_by(CameraSource.created_at)
     ).all()
     records = {
         record.student_id: record

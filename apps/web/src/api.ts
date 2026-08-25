@@ -11,6 +11,7 @@ import type {
   Classroom,
   SessionInsights,
   Sighting,
+  Room,
   User,
 } from './types'
 
@@ -64,6 +65,17 @@ async function requestBlob(path: string): Promise<Blob> {
 
 export const api = {
   me: () => request<User>('/auth/me'),
+  registerAdmin: (input: { full_name: string; email: string; password: string; invite_code: string }) =>
+    request<AuthSession>('/auth/register/admin', { method: 'POST', body: JSON.stringify(input) }),
+  listRooms: () => request<Room[]>('/admin/rooms'),
+  createRoom: (name: string) => request<Room>('/admin/rooms', { method: 'POST', body: JSON.stringify({ name }) }),
+  updateRoom: (roomId: string, input: { name?: string; is_active?: boolean }) => request<Room>(`/admin/rooms/${roomId}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  regenerateRoomCode: (roomId: string) => request<Room>(`/admin/rooms/${roomId}/regenerate-code`, { method: 'POST' }),
+  listRoomCameras: (roomId: string) => request<CameraSource[]>(`/admin/rooms/${roomId}/cameras`),
+  createRoomCamera: (roomId: string, input: { label: string; source_type: CameraSourceType; source: string }) => request<CameraSource>(`/admin/rooms/${roomId}/cameras`, { method: 'POST', body: JSON.stringify(input) }),
+  updateRoomCamera: (roomId: string, cameraId: string, input: Partial<Pick<CameraSource, 'label' | 'source_type' | 'source' | 'is_enabled'>>) => request<CameraSource>(`/admin/rooms/${roomId}/cameras/${cameraId}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  deleteRoomCamera: (roomId: string, cameraId: string) => request<void>(`/admin/rooms/${roomId}/cameras/${cameraId}`, { method: 'DELETE' }),
+
   login: (email: string, password: string) =>
     request<AuthSession>('/auth/login', {
       method: 'POST',
@@ -91,7 +103,7 @@ export const api = {
     request<Classroom>('/classes', { method: 'POST', body: JSON.stringify({ name, section: section || null }) }),
   joinClass: (join_code: string) =>
     request<Classroom>('/classes/join', { method: 'POST', body: JSON.stringify({ join_code }) }),
-  listCameras: (classId: string) => request<CameraSource[]>(`/classes/${classId}/camera-sources`),
+  listTeacherRoomCameras: (roomCode: string) => request<CameraSource[]>(`/teacher/rooms/${encodeURIComponent(roomCode)}/cameras`),
   createCamera: (classId: string, input: { label: string; source_type: CameraSourceType; source: string }) =>
     request<CameraSource>(`/classes/${classId}/camera-sources`, {
       method: 'POST',
@@ -105,7 +117,7 @@ export const api = {
   deleteCamera: (classId: string, cameraId: string) =>
     request<void>(`/classes/${classId}/camera-sources/${cameraId}`, { method: 'DELETE' }),
   listSessions: (classId: string) => request<AttendanceSession[]>(`/classes/${classId}/sessions`),
-  startSession: (classId: string, input: { title: string; qualification_window_minutes: number; grace_period_minutes: number }) =>
+  startSession: (classId: string, input: { title: string; room_code: string; qualification_window_minutes: number; grace_period_minutes: number }) =>
     request<AttendanceSession>(`/classes/${classId}/sessions`, {
       method: 'POST',
       body: JSON.stringify({ ...input, minimum_sightings: 1 }),

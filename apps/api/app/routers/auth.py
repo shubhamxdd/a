@@ -11,7 +11,13 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models import FaceEncoding, StudentProfile, User, UserRole
-from app.schemas import LoginRequest, TeacherRegistration, TokenResponse, UserResponse
+from app.schemas import (
+    AdminRegistration,
+    LoginRequest,
+    TeacherRegistration,
+    TokenResponse,
+    UserResponse,
+)
 from app.security import (
     CurrentUser,
     create_access_token,
@@ -51,6 +57,23 @@ def register_teacher(payload: TeacherRegistration, db: DbSession) -> TokenRespon
         role=UserRole.TEACHER,
         full_name=payload.full_name.strip(),
     )
+    db.add(user)
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An account already uses this email.") from error
+    db.refresh(user)
+    return token_response(user)
+
+
+@router.post("/register/admin", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+def register_admin(payload: AdminRegistration, db: DbSession) -> TokenResponse:
+    if payload.invite_code != settings.admin_invite_code:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid admin invite code.")
+    if db.scalar(select(User.id).where(User.role == UserRole.ADMIN)) is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An admin account already exists.")
+    user = User(email=str(payload.email).lower(), password_hash=hash_password(payload.password), role=UserRole.ADMIN, full_name=payload.full_name.strip())
     db.add(user)
     try:
         db.commit()

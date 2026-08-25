@@ -233,7 +233,10 @@ class RecognitionManager:
             if session is None:
                 return 0
             sources = db.scalars(
-                select(CameraSource).where(CameraSource.class_id == session.class_id, CameraSource.is_enabled.is_(True))
+                select(CameraSource).where(
+                    CameraSource.room_id == session.room_id,
+                    CameraSource.is_enabled.is_(True),
+                )
             ).all()
             enrolled = db.execute(
                 select(FaceEncoding.student_id, User.full_name, FaceEncoding.embedding)

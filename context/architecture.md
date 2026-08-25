@@ -4,7 +4,7 @@
 
 | Layer | Technology | Role |
 | --- | --- | --- |
-| Web | Vite, React, TypeScript, Tailwind CSS, browser `getUserMedia` | Role-based interface and guided enrollment-photo capture |
+| Web | Vite, React, TypeScript, Tailwind CSS, browser `getUserMedia` | Admin room/camera operations, teacher attendance operations, student enrollment and history |
 | API | FastAPI, SQLAlchemy | REST API, authentication, session orchestration |
 | Recognition | Python, face_recognition, OpenCV | Enrollment encoding and independent camera workers |
 | Database | PostgreSQL via Docker Compose | Users, classes, sessions, sightings, attendance, audit events |
@@ -27,7 +27,9 @@
 
 - Every request is authenticated by a local account token.
 - A stored user role determines teacher or student UI and API access.
-- Teacher registration requires a configured demo invite code.
+- Admin registration uses a configured invite code and only one admin account is permitted in the local MVP. Admins exclusively manage rooms and their camera sources.
+- Teachers select a class and provide an active room code when starting each session. A room can have only one active session; every enabled camera assigned to that room starts automatically.
+- Legacy class-owned camera rows remain nullable and read-only for historical sighting integrity. New sessions and camera configurations are room-owned; teachers cannot mutate cameras.
 - Students may read only their own profile, memberships, and attendance. Teachers may manage only their own classes and sessions.
 
 ## Invariants

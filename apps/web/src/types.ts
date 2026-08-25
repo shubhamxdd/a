@@ -1,4 +1,4 @@
-export type UserRole = 'teacher' | 'student'
+export type UserRole = 'admin' | 'teacher' | 'student'
 export type AttendanceStatus = 'present' | 'late' | 'absent'
 export type SessionStatus = 'active' | 'completed'
 export type CameraSourceType = 'webcam' | 'ip_stream' | 'video_file'
@@ -28,6 +28,17 @@ export interface Classroom {
   created_at: string
 }
 
+export interface Room {
+  id: string
+  name: string
+  room_code: string
+  is_active: boolean
+  camera_count: number
+  enabled_camera_count: number
+  active_session_id: string | null
+  active_session_title: string | null
+  created_at: string
+}
 export interface CameraSource {
   id: string
   label: string
@@ -40,6 +51,9 @@ export interface CameraSource {
 
 export interface AttendanceSession {
   id: string
+  room_id: string | null
+  room_name: string | null
+  room_code: string | null
   class_id: string
   title: string
   status: SessionStatus

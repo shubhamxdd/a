@@ -16,6 +16,10 @@ class TeacherRegistration(BaseModel):
     invite_code: str = Field(min_length=1, max_length=128)
 
 
+class AdminRegistration(TeacherRegistration):
+    pass
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
@@ -35,6 +39,40 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+class RoomCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+
+
+class RoomUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    is_active: bool | None = None
+
+
+class RoomResponse(BaseModel):
+    id: UUID
+    name: str
+    room_code: str
+    is_active: bool
+    camera_count: int = 0
+    enabled_camera_count: int = 0
+    active_session_id: UUID | None = None
+    active_session_title: str | None = None
+    created_at: datetime
+
+
+class RoomCameraCreate(BaseModel):
+    label: str = Field(min_length=2, max_length=100)
+    source_type: CameraSourceType
+    source: str = Field(min_length=1, max_length=2048)
+
+
+class RoomCameraUpdate(BaseModel):
+    label: str | None = Field(default=None, min_length=2, max_length=100)
+    source_type: CameraSourceType | None = None
+    source: str | None = Field(default=None, min_length=1, max_length=2048)
+    is_enabled: bool | None = None
 
 
 class ClassroomCreate(BaseModel):
@@ -80,6 +118,7 @@ class CameraSourceResponse(BaseModel):
 
 class AttendanceSessionCreate(BaseModel):
     title: str = Field(min_length=2, max_length=160)
+    room_code: str = Field(min_length=1, max_length=16)
     grace_period_minutes: int = Field(default=10, ge=0, le=120)
     minimum_sightings: int = Field(default=1, ge=1, le=20)
     qualification_window_minutes: int = Field(default=1, ge=1, le=60)
@@ -88,6 +127,9 @@ class AttendanceSessionCreate(BaseModel):
 class AttendanceSessionResponse(BaseModel):
     id: UUID
     class_id: UUID
+    room_id: UUID | None
+    room_name: str | None
+    room_code: str | None
     title: str
     status: SessionStatus
     started_at: datetime

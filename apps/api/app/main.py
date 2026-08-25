@@ -7,8 +7,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
 from app.config import settings
-from app.database import Base, engine, ensure_anonymous_sightings_compatible
-from app.routers import auth, classes, sessions
+from app.database import (
+    Base,
+    engine,
+    ensure_anonymous_sightings_compatible,
+    ensure_room_schema_compatible,
+)
+from app.routers import admin, auth, classes, sessions
 from app.services.recognition import recognition_manager
 
 
@@ -17,6 +22,7 @@ async def lifespan(_: FastAPI):
     settings.media_root.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
     ensure_anonymous_sightings_compatible()
+    ensure_room_schema_compatible()
     yield
     recognition_manager.stop_all()
 
@@ -29,6 +35,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(admin.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(classes.router, prefix="/api/v1")
 app.include_router(sessions.router, prefix="/api/v1")

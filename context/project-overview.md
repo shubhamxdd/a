@@ -12,20 +12,22 @@ A local-first hackathon application for classroom attendance using a laptop webc
 
 ## Core User Flow
 
-1. A teacher or student creates an account from the shared login page.
-2. A student captures three reference photos from their device camera, supplies name and roll number, and receives locally generated embeddings.
-3. A teacher creates a class and shares its join code.
-4. A student joins the class with that code.
-5. The teacher configures two camera sources and starts a class session.
-6. Both camera workers log qualified sightings; the system derives attendance.
-7. Teachers review or override a result; students view only their own history.
+1. An admin, teacher, or student creates an account from the shared login page.
+2. The admin creates physical rooms and configures each room's camera sources.
+3. A student captures three reference photos from their device camera, supplies name and roll number, and receives locally generated embeddings.
+4. A teacher creates a class and shares its join code.
+5. A student joins the class with that code.
+6. The teacher selects a class, enters a valid room code, and starts a session using every enabled camera in that room.
+7. Room camera workers log qualified sightings; the system derives attendance.
+8. Teachers review or override a result; students view only their own history.
 
 ## Features
 
 ### Authentication and onboarding
 
 - One sign-in entry point with role-based routing.
-- Teacher registration protected by a demo invite code.
+- Admin registration protected by a demo invite code; the admin manages physical rooms and assigns one or more cameras to each room.
+- Teacher registration protected by a demo invite code. Teachers select a class and enter a room code to start attendance with all enabled room cameras.
 - Student face enrollment from exactly three browser-camera captures; file upload remains an API fallback for testing.
 
 ### Attendance
@@ -38,7 +40,8 @@ A local-first hackathon application for classroom attendance using a laptop webc
 
 ### Dashboards
 
-- Teacher class, session, camera, attendance, correction, timeline, camera-zone, review-queue, integrity-report, and scoped natural-language attendance-query workflows.
+- Admin room and camera management, room code regeneration, enabled-camera state, and current room occupancy.
+- Teacher class, room-based session, attendance, correction, timeline, camera-zone, review-queue, integrity-report, and scoped natural-language attendance-query workflows.
 - Teachers can ask explainable questions such as attendance today, on a date, between dates, by status, or for a named student within a selected owned class. The parser maps supported language to bounded filters; it does not generate or execute arbitrary SQL.
 - Student personal attendance percentage and session history.
 
@@ -46,7 +49,8 @@ A local-first hackathon application for classroom attendance using a laptop webc
 
 ### In Scope
 
-- Two-camera recognition, local enrollment-photo storage, PostgreSQL metadata, and basic daily analytics.
+- Admin-managed rooms, room-owned camera configuration and editing, room availability, and one-active-session room exclusivity.
+- Multi-camera recognition, local enrollment-photo storage, PostgreSQL metadata, and basic daily analytics.
 - Manual teacher attendance overrides with an audit trail.
 
 ### Out of Scope

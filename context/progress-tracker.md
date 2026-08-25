@@ -64,7 +64,15 @@
 - Added server-side OpenRouter configuration (`OPENROUTER_API_KEY`, model, base URL), runtime dependency, provider privacy boundary documentation, and disabled-by-default behavior when no key is configured.
 - Verified repository Ruff checks, Python compilation, TypeScript/Vite production build, and `git diff --check` after the assistant implementation.
 - Formatted teacher assistant answers in the frontend with local heading, emphasis, list, and simple table rendering while retaining the canonical structured attendance result table. Renamed the action to Ask AI and added an accessible animated gradient/loading treatment with reduced-motion support.
-- Updated teacher session insights to reuse the canonical configurable-window attendance helpers, removing the remaining hardcoded one-minute coverage calculation so insights and attendance review agree for 1–60 minute windows.
+- Added invite-code-protected single-admin authentication and role routing.
+- Added admin-managed physical rooms with permanent regeneratable codes, active/inactive state, occupancy, and room-owned camera CRUD.
+- Moved new attendance sessions to room-code startup: teachers select a class, enter a room code, and all enabled room cameras run automatically. One room permits only one active session.
+- Removed new-session dependence on teacher-managed class cameras. Legacy class-camera rows remain nullable and untouched for historical sighting integrity; teacher room cameras are read-only.
+- Added compatibility startup updates for the admin role and nullable room links without destructive database resets.
+- Updated camera previews, recognition workers, camera-zone insights, and health lookup to use room cameras for room-based sessions while retaining legacy fallbacks.
+- Fixed existing-database admin registration failures: compatibility startup now normalizes the PostgreSQL enum label to SQLAlchemy's `ADMIN` name instead of leaving a lowercase `admin` label that caused 500 responses. Verified admin registration requests return CORS headers and complete successfully on a migrated local database.
+- Fixed existing-database room camera creation failures by also dropping the legacy `camera_sources.class_id` NOT NULL constraint when adding room ownership. Verified room camera creation returns `201 Created` with CORS headers.
+- Added an admin camera-edit dialog for room cameras, including label, source type, source value, and enabled-state updates. Updated the README and product flow documentation for the latest admin-managed room workflow.
 
 ## In Progress
 

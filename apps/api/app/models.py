@@ -23,6 +23,7 @@ from app.database import Base
 
 
 class UserRole(str, enum.Enum):
+    ADMIN = "admin"
     TEACHER = "teacher"
     STUDENT = "student"
 
@@ -130,11 +131,25 @@ class ClassMembership(Base):
     student: Mapped[User] = relationship(back_populates="class_memberships")
 
 
+class Room(Base):
+    __tablename__ = "rooms"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    room_code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    camera_sources: Mapped[list[CameraSource]] = relationship(back_populates="room")
+    sessions: Mapped[list[AttendanceSession]] = relationship(back_populates="room")
+
+
 class CameraSource(Base):
     __tablename__ = "camera_sources"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    class_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("classes.id", ondelete="CASCADE"), index=True)
+    class_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("classes.id", ondelete="CASCADE"), index=True, nullable=True)
+    room_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("rooms.id", ondelete="RESTRICT"), index=True, nullable=True)
     label: Mapped[str] = mapped_column(String(100))
     source_type: Mapped[CameraSourceType] = mapped_column(
         Enum(CameraSourceType, name="camera_source_type")
@@ -146,7 +161,8 @@ class CameraSource(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    classroom: Mapped[Classroom] = relationship(back_populates="camera_sources")
+    classroom: Mapped[Classroom | None] = relationship(back_populates="camera_sources")
+    room: Mapped[Room | None] = relationship(back_populates="camera_sources")
 
 
 class AttendanceSession(Base):
@@ -154,6 +170,7 @@ class AttendanceSession(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     class_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("classes.id", ondelete="CASCADE"), index=True)
+    room_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("rooms.id", ondelete="RESTRICT"), index=True, nullable=True)
     title: Mapped[str] = mapped_column(String(160))
     status: Mapped[SessionStatus] = mapped_column(Enum(SessionStatus, name="session_status"), default=SessionStatus.ACTIVE)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -163,6 +180,7 @@ class AttendanceSession(Base):
     qualification_window_minutes: Mapped[int] = mapped_column(default=5)
 
     classroom: Mapped[Classroom] = relationship(back_populates="sessions")
+    room: Mapped[Room | None] = relationship(back_populates="sessions")
     sightings: Mapped[list[Sighting]] = relationship(back_populates="session", cascade="all, delete-orphan")
     attendance_records: Mapped[list[AttendanceRecord]] = relationship(
         back_populates="session", cascade="all, delete-orphan"
