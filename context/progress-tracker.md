@@ -64,7 +64,7 @@
 - Added server-side OpenRouter configuration (`OPENROUTER_API_KEY`, model, base URL), runtime dependency, provider privacy boundary documentation, and disabled-by-default behavior when no key is configured.
 - Verified repository Ruff checks, Python compilation, TypeScript/Vite production build, and `git diff --check` after the assistant implementation.
 - Formatted teacher assistant answers in the frontend with local heading, emphasis, list, and simple table rendering while retaining the canonical structured attendance result table. Renamed the action to Ask AI and added an accessible animated gradient/loading treatment with reduced-motion support.
-- Updated the attendance assistant to always execute the bounded search tool and answer directly: unspecified class means all owned classes, unspecified student means all students, unspecified status means all statuses, and unspecified dates mean all completed sessions. Clarification loops and internal class-ID exposure are prevented.
+- Updated teacher session insights to reuse the canonical configurable-window attendance helpers, removing the remaining hardcoded one-minute coverage calculation so insights and attendance review agree for 1–60 minute windows.
 
 ## In Progress
 

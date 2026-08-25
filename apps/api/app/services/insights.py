@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -22,6 +21,8 @@ from app.models import (
 from app.services.attendance import (
     LATE_THRESHOLD_PERCENTAGE,
     PRESENT_THRESHOLD_PERCENTAGE,
+    observed_window_indexes,
+    session_window_count,
 )
 from app.services.recognition import recognition_manager
 from sqlalchemy import select
@@ -33,7 +34,7 @@ def build_session_insights(session: AttendanceSession, db: Session) -> dict[str,
     now = datetime.now(UTC)
     effective_end = session.ended_at or now
     duration_seconds = max(0, int((effective_end - session.started_at).total_seconds()))
-    eligible_windows = max(1, math.ceil(max(1, duration_seconds) / 60))
+    eligible_windows = session_window_count(session)
     grace_deadline = session.started_at + timedelta(minutes=session.grace_period_minutes)
 
     member_rows = db.execute(
@@ -79,13 +80,7 @@ def build_session_insights(session: AttendanceSession, db: Session) -> dict[str,
     students: list[dict[str, object]] = []
     for student, profile in member_rows:
         student_sightings = by_student[student.id]
-        observed_windows = len(
-            {
-                int((item.matched_at - session.started_at).total_seconds() // 60)
-                for item in student_sightings
-                if item.matched_at >= session.started_at
-            }
-        )
+        observed_windows = len(observed_window_indexes(session, student_sightings))
         percentage = round(observed_windows / eligible_windows * 100, 1)
         first_seen = student_sightings[0].matched_at if student_sightings else None
         last_seen = student_sightings[-1].matched_at if student_sightings else None
