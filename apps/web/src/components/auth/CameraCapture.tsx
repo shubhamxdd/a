@@ -3,13 +3,17 @@ import type React from 'react'
 import { Camera, CheckCircle2, RotateCcw, ScanFace, X } from 'lucide-react'
 import { FaceLandmarker, FilesetResolver, type FaceLandmarkerResult } from '@mediapipe/tasks-vision'
 
-type Pose = 'front' | 'left' | 'right'
+type Pose = 'front' | 'left' | 'right' | 'up' | 'down'
 
 const POSES: Array<{ key: Pose; label: string; instruction: string }> = [
   { key: 'front', label: 'Look straight ahead', instruction: 'Center your face in the oval and look directly at the camera.' },
   { key: 'left', label: 'Turn your head left', instruction: 'Slowly turn your head to your left.' },
   { key: 'right', label: 'Turn your head right', instruction: 'Slowly turn your head to your right.' },
+  { key: 'up', label: 'Tilt your head up', instruction: 'Slowly tilt your head back to look up at the ceiling.' },
+  { key: 'down', label: 'Tilt your head down', instruction: 'Slowly tilt your head forward to look down at the floor.' },
 ]
+
+const REQUIRED_PHOTOS = POSES.length
 
 const LANDMARKER_WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm'
 const LANDMARKER_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'
@@ -42,7 +46,7 @@ export function CameraCapture({ photos, setPhotos }: { photos: Blob[]; setPhotos
     if (captureInProgressRef.current) return
     captureInProgressRef.current = true
     const video = videoRef.current
-    if (!video || !video.videoWidth || photos.length >= 3) { captureInProgressRef.current = false; return }
+    if (!video || !video.videoWidth || photos.length >= REQUIRED_PHOTOS) { captureInProgressRef.current = false; return }
     const canvas = document.createElement('canvas')
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
@@ -53,7 +57,7 @@ export function CameraCapture({ photos, setPhotos }: { photos: Blob[]; setPhotos
     stableSinceRef.current = null
     if (poseIndex === POSES.length - 1) {
       setGuided(false)
-      setGuidance('Scan complete. Review the three photos before submitting.')
+      setGuidance(`Scan complete. Review the ${REQUIRED_PHOTOS} photos before submitting.`)
     } else {
       setPoseIndex((index) => index + 1)
       setGuidance(POSES[poseIndex + 1].instruction)
@@ -67,13 +71,25 @@ export function CameraCapture({ photos, setPhotos }: { photos: Blob[]; setPhotos
     const nose = landmarks[1]
     const leftEye = landmarks[33]
     const rightEye = landmarks[263]
-    if (!nose || !leftEye || !rightEye) return false
+    const forehead = landmarks[10]
+    const chin = landmarks[152]
+    if (!nose || !leftEye || !rightEye || !forehead || !chin) return false
     const eyeDistance = Math.abs(rightEye.x - leftEye.x)
     if (eyeDistance < 0.08) return false
-    const centeredNose = (nose.x - leftEye.x) / (rightEye.x - leftEye.x)
-    if (currentPose.key === 'front') return centeredNose > 0.38 && centeredNose < 0.62
-    if (currentPose.key === 'left') return centeredNose < 0.36
-    return centeredNose > 0.64
+    const faceHeight = chin.y - forehead.y
+    if (faceHeight < 0.15) return false
+    // The nose tip protrudes from the face and swings toward whichever direction the head turns
+    // or tilts, so its position within the eye-to-eye span (yaw) and forehead-to-chin span
+    // (pitch) is a reasonable proxy angle check without needing a full 3D head-pose model.
+    const yawRatio = (nose.x - leftEye.x) / (rightEye.x - leftEye.x)
+    const pitchRatio = (nose.y - forehead.y) / faceHeight
+    switch (currentPose.key) {
+      case 'front': return yawRatio > 0.38 && yawRatio < 0.62 && pitchRatio > 0.4 && pitchRatio < 0.62
+      case 'left': return yawRatio < 0.36
+      case 'right': return yawRatio > 0.64
+      case 'up': return pitchRatio < 0.34
+      case 'down': return pitchRatio > 0.68
+    }
   }
 
   const analyze = (now: number) => {
@@ -123,7 +139,7 @@ export function CameraCapture({ photos, setPhotos }: { photos: Blob[]; setPhotos
 
   const upload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(event.target.files ?? []).filter((file) => file.type === 'image/jpeg' || file.type === 'image/png')
-    setPhotos([...photos, ...selected].slice(0, 3))
+    setPhotos([...photos, ...selected].slice(0, REQUIRED_PHOTOS))
     event.target.value = ''
   }
 
@@ -133,5 +149,5 @@ export function CameraCapture({ photos, setPhotos }: { photos: Blob[]; setPhotos
   useEffect(() => { if (guided) animationRef.current = requestAnimationFrame(analyze); return () => { if (animationRef.current !== null) cancelAnimationFrame(animationRef.current) } }, [guided, poseIndex, photos])
   useEffect(() => () => { streamRef.current?.getTracks().forEach((track) => track.stop()); landmarkerRef.current?.close() }, [])
 
-  return <div className="space-y-3"><div className="relative aspect-[3/4] min-h-0 overflow-hidden rounded-lg bg-[#edf1ed] sm:aspect-video sm:min-h-80 lg:aspect-[16/8] lg:min-h-[360px]">{active ? <><video ref={videoRef} autoPlay playsInline muted className="size-full object-contain sm:object-cover" /><div className="pointer-events-none absolute inset-0 grid place-items-center"><div className="h-[78%] w-[58%] rounded-[50%] border-2 border-white/80 shadow-[0_0_0_999px_rgb(23_32_28/20%)] sm:w-[42%]" /></div><div className="absolute left-1/2 top-3 -translate-x-1/2 rounded-full bg-[#17201c]/75 px-3 py-1.5 text-center text-xs font-semibold text-white">{guided ? guidance : 'Scan complete'}</div></> : <div className="grid size-full place-items-center text-center text-sm text-[var(--muted)]"><div><ScanFace size={28} className="mx-auto mb-2" />Guided scan captures front, left, and right poses</div></div>}</div>{active && <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><span className="font-semibold text-[var(--muted)]">{Math.min(photos.length, 3)}/3 poses captured</span><div className="flex items-center gap-4">{guided ? <span className="text-xs font-semibold text-[var(--muted)]">Follow the guidance above</span> : <button type="button" onClick={restart} className="flex items-center gap-1 font-bold text-[var(--green)]"><RotateCcw size={14} /> Scan again</button>}<button type="button" onClick={stop} className="font-bold text-[var(--red)]">Stop camera</button></div></div>} {!active && <div className="flex flex-wrap items-center gap-4 text-sm"><button type="button" onClick={start} disabled={photos.length >= 3} className="flex items-center gap-1 font-bold text-[var(--green)] disabled:opacity-40"><Camera size={15} /> Start guided scan</button><label className="cursor-pointer font-bold text-[var(--green)] hover:underline">Upload images<input type="file" accept="image/jpeg,image/png" multiple onChange={upload} disabled={photos.length >= 3} className="sr-only" /></label></div>}{cameraError && <p className="text-[11px] text-[var(--red)]">{cameraError}</p>}<p className="text-xs text-[var(--muted)]">Camera guidance is optional. You can upload three JPEG/PNG images as a fallback.</p>{photos.length > 0 && <div className="flex flex-wrap gap-2">{photos.map((photo, index) => <button type="button" title={`Remove capture ${index + 1}`} key={index} onClick={() => setPhotos(photos.filter((_, photoIndex) => photoIndex !== index))} className="group relative"><img src={URL.createObjectURL(photo)} className="size-16 rounded-md object-cover ring-1 ring-[var(--line)]" alt={`Reference ${index + 1}`} /><span className="absolute inset-0 hidden place-items-center rounded-md bg-black/50 text-white group-hover:grid"><X size={14} /></span></button>)}{photos.length === 3 && <span className="flex items-center gap-1 text-xs font-semibold text-[var(--green)]"><CheckCircle2 size={14} /> Ready for review</span>}</div>}</div>
+  return <div className="space-y-3"><div className="relative aspect-[3/4] min-h-0 overflow-hidden rounded-lg bg-[#edf1ed] sm:aspect-video sm:min-h-80 lg:aspect-[16/8] lg:min-h-[360px]">{active ? <><video ref={videoRef} autoPlay playsInline muted className="size-full object-contain sm:object-cover" /><div className="pointer-events-none absolute inset-0 grid place-items-center"><div className="h-[78%] w-[58%] rounded-[50%] border-2 border-white/80 shadow-[0_0_0_999px_rgb(23_32_28/20%)] sm:w-[42%]" /></div><div className="absolute left-1/2 top-3 -translate-x-1/2 rounded-full bg-[#17201c]/75 px-3 py-1.5 text-center text-xs font-semibold text-white">{guided ? guidance : 'Scan complete'}</div></> : <div className="grid size-full place-items-center text-center text-sm text-[var(--muted)]"><div><ScanFace size={28} className="mx-auto mb-2" />Guided scan captures front, left, right, up, and down poses</div></div>}</div>{active && <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><span className="font-semibold text-[var(--muted)]">{Math.min(photos.length, REQUIRED_PHOTOS)}/{REQUIRED_PHOTOS} poses captured</span><div className="flex items-center gap-4">{guided ? <span className="text-xs font-semibold text-[var(--muted)]">Follow the guidance above</span> : <button type="button" onClick={restart} className="flex items-center gap-1 font-bold text-[var(--green)]"><RotateCcw size={14} /> Scan again</button>}<button type="button" onClick={stop} className="font-bold text-[var(--red)]">Stop camera</button></div></div>} {!active && <div className="flex flex-wrap items-center gap-4 text-sm"><button type="button" onClick={start} disabled={photos.length >= REQUIRED_PHOTOS} className="flex items-center gap-1 font-bold text-[var(--green)] disabled:opacity-40"><Camera size={15} /> Start guided scan</button><label className="cursor-pointer font-bold text-[var(--green)] hover:underline">Upload images<input type="file" accept="image/jpeg,image/png" multiple onChange={upload} disabled={photos.length >= REQUIRED_PHOTOS} className="sr-only" /></label></div>}{cameraError && <p className="text-[11px] text-[var(--red)]">{cameraError}</p>}<p className="text-xs text-[var(--muted)]">Camera guidance is optional. You can upload {REQUIRED_PHOTOS} JPEG/PNG images as a fallback.</p>{photos.length > 0 && <div className="flex flex-wrap gap-2">{photos.map((photo, index) => <button type="button" title={`Remove capture ${index + 1}`} key={index} onClick={() => setPhotos(photos.filter((_, photoIndex) => photoIndex !== index))} className="group relative"><img src={URL.createObjectURL(photo)} className="size-16 rounded-md object-cover ring-1 ring-[var(--line)]" alt={`Reference ${index + 1}`} /><span className="absolute inset-0 hidden place-items-center rounded-md bg-black/50 text-white group-hover:grid"><X size={14} /></span></button>)}{photos.length === REQUIRED_PHOTOS && <span className="flex items-center gap-1 text-xs font-semibold text-[var(--green)]"><CheckCircle2 size={14} /> Ready for review</span>}</div>}</div>
 }
