@@ -8,6 +8,7 @@ import type {
   AuthSession,
   CameraSource,
   CameraSourceType,
+  ClassStudent,
   Classroom,
   SessionInsights,
   Sighting,
@@ -103,6 +104,9 @@ export const api = {
     request<Classroom>('/classes', { method: 'POST', body: JSON.stringify({ name, section: section || null }) }),
   joinClass: (join_code: string) =>
     request<Classroom>('/classes/join', { method: 'POST', body: JSON.stringify({ join_code }) }),
+  listClassStudents: (classId: string) => request<ClassStudent[]>(`/classes/${classId}/students`),
+  studentAttendanceInClass: (classId: string, studentId: string) =>
+    request<AttendanceSummary>(`/classes/${classId}/students/${studentId}/attendance`),
   listTeacherRoomCameras: (roomCode: string) => request<CameraSource[]>(`/teacher/rooms/${encodeURIComponent(roomCode)}/cameras`),
   createCamera: (classId: string, input: { label: string; source_type: CameraSourceType; source: string }) =>
     request<CameraSource>(`/classes/${classId}/camera-sources`, {

@@ -13,12 +13,16 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import (
+    AttendanceOverrideEvent,
+    AttendanceRecord,
     AttendanceSession,
+    AttendanceStatus,
     CameraSource,
     ClassMembership,
     Classroom,
     SessionStatus,
     Sighting,
+    StudentProfile,
     User,
     UserRole,
 )
@@ -28,9 +32,13 @@ from app.schemas import (
     CameraSourceUpdate,
     ClassroomCreate,
     ClassroomResponse,
+    ClassStudentResponse,
     JoinClassRequest,
+    StudentAttendanceEntry,
+    StudentAttendanceSummary,
 )
 from app.security import CurrentUser, require_role
+from app.services.attendance import coverage_for_record
 
 router = APIRouter(prefix="/classes", tags=["classes"])
 DbSession = Annotated[Session, Depends(get_db)]
@@ -122,6 +130,107 @@ def join_classroom(payload: JoinClassRequest, student: StudentUser, db: DbSessio
         db.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You have already joined this class.") from error
     return serialize_classroom(classroom)
+
+
+@router.get("/{class_id}/students", response_model=list[ClassStudentResponse])
+def list_class_students(class_id: UUID, teacher: TeacherUser, db: DbSession) -> list[ClassStudentResponse]:
+    """List every student enrolled in a class the teacher owns."""
+    get_owned_classroom(class_id, teacher, db)
+    rows = db.execute(
+        select(User, StudentProfile, ClassMembership)
+        .join(StudentProfile, StudentProfile.user_id == User.id)
+        .join(ClassMembership, ClassMembership.student_id == User.id)
+        .where(ClassMembership.class_id == class_id)
+        .order_by(User.full_name)
+    ).all()
+    return [
+        ClassStudentResponse(
+            id=student.id,
+            full_name=student.full_name,
+            email=student.email,
+            roll_number=profile.roll_number,
+            joined_at=membership.joined_at,
+        )
+        for student, profile, membership in rows
+    ]
+
+
+@router.get("/{class_id}/students/{student_id}/attendance", response_model=StudentAttendanceSummary)
+def student_attendance_in_class(
+    class_id: UUID, student_id: UUID, teacher: TeacherUser, db: DbSession
+) -> StudentAttendanceSummary:
+    """Return one enrolled student's completed-session attendance history for this class only."""
+    classroom = get_owned_classroom(class_id, teacher, db)
+    membership = db.scalar(
+        select(ClassMembership.id).where(
+            ClassMembership.class_id == class_id, ClassMembership.student_id == student_id
+        )
+    )
+    if membership is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student is not enrolled in this class.")
+
+    rows = db.execute(
+        select(AttendanceRecord, AttendanceSession)
+        .join(AttendanceSession, AttendanceSession.id == AttendanceRecord.session_id)
+        .where(
+            AttendanceRecord.student_id == student_id,
+            AttendanceSession.class_id == class_id,
+            AttendanceSession.status == SessionStatus.COMPLETED,
+        )
+        .order_by(AttendanceSession.started_at.desc())
+    ).all()
+    override_rows = db.scalars(
+        select(AttendanceOverrideEvent)
+        .where(AttendanceOverrideEvent.student_id == student_id)
+        .order_by(AttendanceOverrideEvent.created_at.desc(), AttendanceOverrideEvent.id.desc())
+    ).all()
+    latest_overrides: dict[UUID, AttendanceOverrideEvent] = {}
+    for event in override_rows:
+        latest_overrides.setdefault(event.session_id, event)
+
+    history: list[StudentAttendanceEntry] = []
+    for record, session in rows:
+        effective = latest_overrides.get(record.session_id)
+        observed_windows, eligible_windows, presence_percentage = coverage_for_record(
+            session,
+            db.scalars(
+                select(Sighting).where(
+                    Sighting.session_id == session.id,
+                    Sighting.student_id == student_id,
+                )
+            ).all(),
+        )
+        history.append(
+            StudentAttendanceEntry(
+                session_id=session.id,
+                class_id=classroom.id,
+                class_name=classroom.name,
+                session_title=session.title,
+                session_started_at=session.started_at,
+                session_ended_at=session.ended_at,
+                automated_status=record.automated_status,
+                effective_status=effective.corrected_status if effective else record.automated_status,
+                qualifying_at=record.qualifying_at,
+                observed_windows=observed_windows,
+                eligible_windows=eligible_windows,
+                presence_percentage=presence_percentage,
+            )
+        )
+
+    present_sessions = sum(entry.effective_status is AttendanceStatus.PRESENT for entry in history)
+    late_sessions = sum(entry.effective_status is AttendanceStatus.LATE for entry in history)
+    absent_sessions = sum(entry.effective_status is AttendanceStatus.ABSENT for entry in history)
+    total_sessions = len(history)
+    attended_sessions = present_sessions + late_sessions
+    return StudentAttendanceSummary(
+        total_sessions=total_sessions,
+        attended_sessions=attended_sessions,
+        present_sessions=present_sessions,
+        late_sessions=late_sessions,
+        absent_sessions=absent_sessions,
+        attendance_percentage=round(attended_sessions / total_sessions * 100, 1) if total_sessions else 0.0,
+        history=history,
+    )
 
 
 @router.get("/{class_id}/camera-sources", response_model=list[CameraSourceResponse])
