@@ -13,9 +13,9 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png"}
 
 
 def create_face_encodings(student_id: uuid.UUID, photos: list[UploadFile]) -> list[tuple[str, list[float]]]:
-    """Save three valid reference photos and derive a face embedding from each."""
-    if len(photos) != 3:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Exactly three photos are required.")
+    """Save five valid reference photos and derive a face embedding from each."""
+    if len(photos) != 5:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Exactly five photos are required.")
 
     student_directory = settings.media_root / "enrollment" / str(student_id)
     student_directory.mkdir(parents=True, exist_ok=False)
