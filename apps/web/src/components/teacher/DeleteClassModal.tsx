@@ -3,7 +3,7 @@ import { api } from '../../api'
 import type { Classroom } from '../../types'
 import { Modal, Notice } from '../ui/primitives'
 
-export function DeleteClassModal({ classroom, onClose, onDeleted }: { classroom: Classroom; onClose: () => void; onDeleted: () => void }) {
+export function DeleteClassModal({ classroom, onClose }: { classroom: Classroom; onClose: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -12,7 +12,10 @@ export function DeleteClassModal({ classroom, onClose, onDeleted }: { classroom:
     setError('')
     try {
       await api.deleteClass(classroom.id)
-      onDeleted()
+      // Full reload so every piece of state derived from the now-deleted class (selection, URL
+      // query params, the active-session lock) re-resolves from scratch instead of being patched
+      // up piecemeal on the client.
+      window.location.reload()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to delete this class.')
       setBusy(false)

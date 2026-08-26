@@ -53,6 +53,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     }
     throw new ApiError(message, response.status)
   }
+  // A 204 No Content response (used by every DELETE endpoint) has no body — parsing it as JSON
+  // would throw, turning a successful delete into a thrown error.
+  if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }
 

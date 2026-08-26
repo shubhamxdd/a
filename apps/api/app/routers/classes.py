@@ -118,6 +118,7 @@ def list_classrooms(current_user: CurrentUser, db: DbSession) -> list[ClassroomR
 @router.delete("/{class_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_classroom(class_id: UUID, teacher: TeacherUser, db: DbSession) -> Response:
     """Permanently delete a class, cascading its memberships, cameras, and session history."""
+    print(class_id)
     classroom = get_owned_classroom(class_id, teacher, db)
     active_session = db.scalar(
         select(AttendanceSession.id).where(
