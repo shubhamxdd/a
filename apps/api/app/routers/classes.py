@@ -115,6 +115,23 @@ def list_classrooms(current_user: CurrentUser, db: DbSession) -> list[ClassroomR
     return [serialize_classroom(classroom) for classroom in classrooms]
 
 
+@router.delete("/{class_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_classroom(class_id: UUID, teacher: TeacherUser, db: DbSession) -> Response:
+    """Permanently delete a class, cascading its memberships, cameras, and session history."""
+    classroom = get_owned_classroom(class_id, teacher, db)
+    active_session = db.scalar(
+        select(AttendanceSession.id).where(
+            AttendanceSession.class_id == class_id,
+            AttendanceSession.status == SessionStatus.ACTIVE,
+        )
+    )
+    if active_session is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Stop the active attendance session before deleting this class.")
+    db.delete(classroom)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.post("/join", response_model=ClassroomResponse, status_code=status.HTTP_201_CREATED)
 def join_classroom(payload: JoinClassRequest, student: StudentUser, db: DbSession) -> ClassroomResponse:
     classroom = db.scalar(

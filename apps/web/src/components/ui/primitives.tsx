@@ -1,4 +1,5 @@
 import type React from 'react'
+import { createPortal } from 'react-dom'
 import { AlertCircle, X } from 'lucide-react'
 import type { AttendanceStatus } from '../../types'
 
@@ -11,4 +12,12 @@ export function Panel({ title, action, children }: { title: string; action?: Rea
 export function Empty({ text }: { text: string }) { return <p className="py-5 text-sm text-[var(--muted)]">{text}</p> }
 export function PageHeading({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) { return <div className="flex flex-col justify-between gap-5 border-b border-[var(--line)] pb-8 sm:flex-row sm:items-end"><div><p className="mb-2 text-xs font-bold uppercase tracking-[.16em] text-[var(--green)]">{eyebrow}</p><h1 className="text-3xl font-semibold tracking-[-.035em] lg:text-4xl">{title}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">{description}</p></div>{action}</div> }
 export function Notice({ children, tone = 'info' }: { children: React.ReactNode; tone?: 'error' | 'info' }) { return <div className={`mb-4 flex items-start gap-2 rounded-md border p-3 text-sm ${tone === 'error' ? 'border-[#f0c8c5] bg-[var(--red-soft)] text-[var(--red)]' : 'border-[#cfe4d5] bg-[var(--green-soft)] text-[var(--green)]'}`}><AlertCircle size={17} className="mt-0.5 shrink-0" />{children}</div> }
-export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) { return <div className="fixed inset-0 z-20 grid place-items-center bg-[#17201c]/35 p-5"><div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="mb-6 flex items-center justify-between"><h2 className="text-xl font-semibold">{title}</h2><button title="Close" onClick={onClose} className="text-[var(--muted)]"><X size={20} /></button></div>{children}</div></div> }
+export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  // Rendered via a portal straight to document.body: a page wrapper's `.fade-in` mount animation
+  // leaves a non-`none` transform applied via animation-fill-mode, which would otherwise confine
+  // this fixed-position overlay to that ancestor's box instead of the real viewport.
+  return createPortal(
+    <div className="fixed inset-0 z-20 grid place-items-center bg-[#17201c]/35 p-5"><div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="mb-6 flex items-center justify-between"><h2 className="text-xl font-semibold">{title}</h2><button title="Close" onClick={onClose} className="text-[var(--muted)]"><X size={20} /></button></div>{children}</div></div>,
+    document.body,
+  )
+}

@@ -105,6 +105,7 @@ export const api = {
     request<Classroom>('/classes', { method: 'POST', body: JSON.stringify({ name, section: section || null }) }),
   joinClass: (join_code: string) =>
     request<Classroom>('/classes/join', { method: 'POST', body: JSON.stringify({ join_code }) }),
+  deleteClass: (classId: string) => request<void>(`/classes/${classId}`, { method: 'DELETE' }),
   activeTeacherSession: () => request<ActiveTeacherSession>('/classes/active-session'),
   listClassStudents: (classId: string) => request<ClassStudent[]>(`/classes/${classId}/students`),
   studentAttendanceInClass: (classId: string, studentId: string) =>
