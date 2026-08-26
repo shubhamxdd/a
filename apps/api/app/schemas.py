@@ -93,6 +93,20 @@ class JoinClassRequest(BaseModel):
     join_code: str = Field(min_length=4, max_length=12)
 
 
+class ClassStudentResponse(BaseModel):
+    id: UUID
+    full_name: str
+    email: EmailStr
+    roll_number: str
+    joined_at: datetime
+
+
+class ActiveTeacherSessionResponse(BaseModel):
+    class_id: UUID | None = None
+    class_name: str | None = None
+    session_id: UUID | None = None
+
+
 class CameraSourceCreate(BaseModel):
     label: str = Field(min_length=2, max_length=100)
     source_type: CameraSourceType

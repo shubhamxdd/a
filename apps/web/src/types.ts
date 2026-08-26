@@ -28,6 +28,20 @@ export interface Classroom {
   created_at: string
 }
 
+export interface ActiveTeacherSession {
+  class_id: string | null
+  class_name: string | null
+  session_id: string | null
+}
+
+export interface ClassStudent {
+  id: string
+  full_name: string
+  email: string
+  roll_number: string
+  joined_at: string
+}
+
 export interface Room {
   id: string
   name: string
