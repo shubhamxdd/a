@@ -63,3 +63,4 @@ app.openapi = custom_openapi
 @app.get("/health")
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
+
