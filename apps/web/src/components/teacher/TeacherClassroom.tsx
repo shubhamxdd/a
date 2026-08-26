@@ -10,7 +10,7 @@ import { ClassStudents } from './ClassStudents'
 import { Empty, Field, Metric, Notice, Panel } from '../ui/primitives'
 import { readQueryParams, writeQueryParams } from '../../routeParams'
 
-export function TeacherClassroom({ classroom }: { classroom: Classroom }) {
+export function TeacherClassroom({ classroom, onActiveSessionChange }: { classroom: Classroom; onActiveSessionChange?: (session: AttendanceSession | null) => void }) {
   const [cameras, setCameras] = useState<CameraSource[]>([])
   const [sessions, setSessions] = useState<AttendanceSession[]>([])
   const [activeSession, setActiveSession] = useState<AttendanceSession | null>(null)
@@ -25,24 +25,61 @@ export function TeacherClassroom({ classroom }: { classroom: Classroom }) {
   const [message, setMessage] = useState('')
   const [sightings, setSightings] = useState<Sighting[]>([])
   const [insights, setInsights] = useState<SessionInsights | null>(null)
-  const load = () => api.listSessions(classroom.id).then((nextSessions) => { setSessions(nextSessions); const live = nextSessions.find((session) => session.status === 'active') ?? null; setActiveSession(live); if (live) { setReviewSession(live); setRoomCode(live.room_code ?? ''); if (live.room_code) void api.listTeacherRoomCameras(live.room_code).then(setCameras) } }).catch((e) => setMessage(e.message))
-  useEffect(() => { void load() }, [classroom.id])
+  const load = () => api.listSessions(classroom.id).then((nextSessions) => {
+    setSessions(nextSessions)
+    const live = nextSessions.find((session) => session.status === 'active') ?? null
+    setActiveSession(live)
+    if (live) setReviewSession(live)
+    // Remember the class's room code from its most recent session (active or completed) so it
+    // pre-fills next time, until the teacher starts a session with a different code.
+    const rememberedRoomCode = live?.room_code ?? nextSessions[0]?.room_code ?? ''
+    if (rememberedRoomCode) {
+      setRoomCode(rememberedRoomCode)
+      void api.listTeacherRoomCameras(rememberedRoomCode).then(setCameras)
+    }
+  }).catch((e) => setMessage(e.message))
   useEffect(() => {
-    const syncFromUrl = () => {
+    // Switching classes must drop the previous class's session-scoped state (review, insights,
+    // sightings, room/camera setup) before load() repopulates only what applies to the new one —
+    // otherwise load() only ever *sets* these when the new class has a live session, never clears them.
+    setActiveSession(null)
+    setReviewSession(null)
+    setAttendance([])
+    setSightings([])
+    setInsights(null)
+    setCameras([])
+    setRoomCode('')
+    setSessionTitle('Morning attendance')
+    setWindowMinutes(1)
+    setGraceMinutes(10)
+    setMessage('')
+    const { classId, studentId } = readQueryParams()
+    if (classId === classroom.id && studentId) {
+      setSelectedStudentId(studentId)
+      setTab('students')
+    } else {
+      setSelectedStudentId(null)
+      setTab('overview')
+    }
+    void load()
+  }, [classroom.id])
+  useEffect(() => {
+    const onPopState = () => {
       const { classId, studentId } = readQueryParams()
       if (classId !== classroom.id) return
       setSelectedStudentId(studentId)
       if (studentId) setTab('students')
     }
-    syncFromUrl()
-    window.addEventListener('popstate', syncFromUrl)
-    return () => window.removeEventListener('popstate', syncFromUrl)
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
   }, [classroom.id])
   const selectStudent = (nextStudentId: string | null) => {
     setSelectedStudentId(nextStudentId)
     writeQueryParams({ classId: classroom.id, studentId: nextStudentId }, true)
   }
   useEffect(() => { if (!activeSession) { setSightings([]); return }; const refresh = () => Promise.all([api.listSightings(activeSession.id), api.sessionInsights(activeSession.id)]).then(([items, nextInsights]) => { setSightings(items.slice(0, 8)); setInsights(nextInsights) }).catch(() => []); void refresh(); const timer = window.setInterval(refresh, 4000); return () => window.clearInterval(timer) }, [activeSession?.id])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fire only when the session itself changes, not on every parent render
+  useEffect(() => { onActiveSessionChange?.(activeSession) }, [activeSession])
   const start = async () => { try { setMessage(''); const roomCameras = await api.listTeacherRoomCameras(roomCode); setCameras(roomCameras); setActiveSession(await api.startSession(classroom.id, { title: sessionTitle, room_code: roomCode, qualification_window_minutes: windowMinutes, grace_period_minutes: graceMinutes })); await load() } catch (e) { setMessage(e instanceof Error ? e.message : 'Unable to start session.') } }
   const stop = async () => { if (!activeSession) return; try { const completed = await api.stopSession(activeSession.id); setReviewSession(completed); await load(); setTab('attendance'); const [rows, detections] = await Promise.all([api.listAttendance(activeSession.id), api.listSightings(activeSession.id)]); setAttendance(rows); setSightings(detections); setInsights(await api.sessionInsights(activeSession.id).catch(() => null)) } catch (e) { setMessage(e instanceof Error ? e.message : 'Unable to stop session.') } }
   const openAttendance = async (session: AttendanceSession) => { setActiveSession(session.status === 'active' ? session : null); setReviewSession(session); setTab('attendance'); const [rows, detections] = await Promise.all([api.listAttendance(session.id).catch(() => []), api.listSightings(session.id).catch(() => [])]); setAttendance(rows); setSightings(detections); setInsights(await api.sessionInsights(session.id).catch(() => null)) }

@@ -55,6 +55,10 @@ def custom_openapi() -> dict:
 
 app.openapi = custom_openapi
 
+# @app.get("/camera-sources", response_model=list[CameraSourceResponse])
+# def list_camera_sources() -> list[CameraSourceResponse]:
+#     """List all available camera sources."""
+#     return [CameraSourceResponse(id=source.id, label=source.label, source_type=source.source_type) for source in recognition_manager.list_sources()]
 
 @app.get("/health")
 def health_check() -> dict[str, str]:

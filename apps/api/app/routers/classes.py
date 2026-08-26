@@ -27,6 +27,7 @@ from app.models import (
     UserRole,
 )
 from app.schemas import (
+    ActiveTeacherSessionResponse,
     CameraSourceCreate,
     CameraSourceResponse,
     CameraSourceUpdate,
@@ -130,6 +131,27 @@ def join_classroom(payload: JoinClassRequest, student: StudentUser, db: DbSessio
         db.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You have already joined this class.") from error
     return serialize_classroom(classroom)
+
+
+@router.get("/active-session", response_model=ActiveTeacherSessionResponse)
+def active_teacher_session(teacher: TeacherUser, db: DbSession) -> ActiveTeacherSessionResponse:
+    """Report the one class currently running a live attendance session, if any.
+
+    Lets the frontend keep the teacher on that class even across a page reload or a manually
+    edited URL, since the recognition workers keep running server-side regardless of what the
+    teacher is looking at.
+    """
+    row = db.execute(
+        select(AttendanceSession.id, Classroom.id, Classroom.name)
+        .join(Classroom, Classroom.id == AttendanceSession.class_id)
+        .where(Classroom.teacher_id == teacher.id, AttendanceSession.status == SessionStatus.ACTIVE)
+        .order_by(AttendanceSession.started_at.desc())
+        .limit(1)
+    ).first()
+    if row is None:
+        return ActiveTeacherSessionResponse()
+    session_id, class_id, class_name = row
+    return ActiveTeacherSessionResponse(class_id=class_id, class_name=class_name, session_id=session_id)
 
 
 @router.get("/{class_id}/students", response_model=list[ClassStudentResponse])

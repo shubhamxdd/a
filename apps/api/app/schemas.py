@@ -101,6 +101,12 @@ class ClassStudentResponse(BaseModel):
     joined_at: datetime
 
 
+class ActiveTeacherSessionResponse(BaseModel):
+    class_id: UUID | None = None
+    class_name: str | None = None
+    session_id: UUID | None = None
+
+
 class CameraSourceCreate(BaseModel):
     label: str = Field(min_length=2, max_length=100)
     source_type: CameraSourceType
