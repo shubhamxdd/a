@@ -75,12 +75,15 @@
 - Added an admin camera-edit dialog for room cameras, including label, source type, source value, and enabled-state updates. Updated the README and product flow documentation for the latest admin-managed room workflow.
 - Refactored the web frontend out of the monolithic `App.tsx` into focused auth, admin, teacher, student, and shared UI component modules while preserving existing flows and API contracts. `App.tsx` now owns only session restoration, role routing, and the authenticated shell.
 - Made the teacher registration invite-code field visible and required, with client-side submission blocking when the code is empty.
+- Added email-or-roll-number login: all roles retain email login, and students can authenticate with their unique roll number and password through the same bounded login endpoint.
+- Added guided student enrollment capture using MediaPipe Face Landmarker: the browser guides the student through front, left, and right poses, automatically captures stable poses, supports review/removal and scan-again, and retains three-image upload as a fallback.
+- Improved mobile enrollment camera UX with an explicit stop-camera control and portrait-friendly, non-cropped camera framing while preserving the wider desktop layout.
 - Verified the frontend refactor with the strict TypeScript check, Vite production build, and `git diff --check`.
 
 ## In Progress
 
 - Browser verification of one-minute coverage results, including a 50/60-minute example and multi-camera same-window deduplication.
-- Browser verification of the refactored frontend flows and responsive layouts, including enrollment, admin room management, teacher sessions/review, and student history.
+- Browser verification of the refactored frontend flows and responsive layouts, including guided MediaPipe enrollment capture and upload fallback, admin room management, teacher sessions/review, and student history.
 - Browser verification of the timeline, camera health, review queue, CSV integrity report, camera-source deletion safeguards, and rate-limited unknown-face logs.
 
 ## Next Up

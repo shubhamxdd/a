@@ -76,10 +76,10 @@ export const api = {
   updateRoomCamera: (roomId: string, cameraId: string, input: Partial<Pick<CameraSource, 'label' | 'source_type' | 'source' | 'is_enabled'>>) => request<CameraSource>(`/admin/rooms/${roomId}/cameras/${cameraId}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteRoomCamera: (roomId: string, cameraId: string) => request<void>(`/admin/rooms/${roomId}/cameras/${cameraId}`, { method: 'DELETE' }),
 
-  login: (email: string, password: string) =>
+  login: (identifier: string, password: string) =>
     request<AuthSession>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ identifier, password }),
     }),
   registerTeacher: (input: { full_name: string; email: string; password: string; invite_code: string }) =>
     request<AuthSession>('/auth/register/teacher', { method: 'POST', body: JSON.stringify(input) }),

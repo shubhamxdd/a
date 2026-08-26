@@ -35,7 +35,7 @@ export function AuthPage({ page, onAuth, onPage }: { page: 'login' | 'register';
         {page === 'register' && <Field label="Full name" value={form.full_name} onChange={update('full_name')} placeholder="e.g. Aanya Sharma" required />}
         {page === 'register' && role === 'student' && <Field label="Roll number" value={form.roll_number} onChange={update('roll_number')} placeholder="e.g. CSE-042" required />}
         {page === 'register' && role === 'student' && <div className="mt-2"><label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-[var(--muted)]">Reference photos</label><CameraCapture photos={photos} setPhotos={setPhotos} /></div>}
-        <Field label="Email address" type="email" value={form.email} onChange={update('email')} placeholder="you@college.edu" required />
+        <Field label={page === 'login' ? 'Email or roll number' : 'Email address'} type={page === 'login' ? 'text' : 'email'} value={form.email} onChange={update('email')} placeholder={page === 'login' ? 'you@college.edu or CSE-042' : 'you@college.edu'} required />
         <Field label="Password" type="password" value={form.password} onChange={update('password')} placeholder="At least 8 characters" required minLength={8} />
         {page === 'register' && (role === 'admin' || role === 'teacher') && <Field label={`${role === 'admin' ? 'Admin' : 'Teacher'} invite code`} value={form.invite_code} onChange={update('invite_code')} placeholder={role === 'admin' ? 'SMART-ADMIN-DEMO' : 'SMART-TEACHER-DEMO'} required />}
         {error && <Notice tone="error">{error}</Notice>}

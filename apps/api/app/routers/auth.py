@@ -4,7 +4,7 @@ from typing import Annotated
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -123,7 +123,12 @@ def register_student(
 
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: DbSession) -> TokenResponse:
-    user = db.scalar(select(User).where(User.email == str(payload.email).lower()))
+    identifier = payload.identifier.strip().lower()
+    user = db.scalar(
+        select(User)
+        .outerjoin(StudentProfile, StudentProfile.user_id == User.id)
+        .where(or_(User.email == identifier, func.lower(StudentProfile.roll_number) == identifier))
+    )
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password.")
     if not user.is_active:
