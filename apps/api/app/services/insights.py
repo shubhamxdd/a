@@ -87,7 +87,7 @@ def build_session_insights(session: AttendanceSession, db: Session) -> dict[str,
     for student, profile in member_rows:
         student_sightings = by_student[student.id]
         observed_windows = len(observed_window_indexes(session, student_sightings))
-        percentage = round(observed_windows / eligible_windows * 100, 1)
+        percentage = round(observed_windows / eligible_windows * 100, 1) if eligible_windows else 0.0
         first_seen = student_sightings[0].matched_at if student_sightings else None
         last_seen = student_sightings[-1].matched_at if student_sightings else None
         predicted_status = (
@@ -141,6 +141,7 @@ def build_session_insights(session: AttendanceSession, db: Session) -> dict[str,
                 "students_seen": len({item.student_id for item in camera_sightings}),
                 "last_frame_at": health.last_frame_at if health else None,
                 "status": health.status if health else ("session complete" if camera.is_enabled else "disabled"),
+                "error": health.error if health else None,
             }
         )
 

@@ -21,7 +21,7 @@ def get_face_app(det_size: tuple[int, int] = (640, 640)) -> Any:
     calls reuse the existing model regardless of the size passed.  Workers that
     need a specific detection size should call ``prepare`` on their own copy.
     """
-    global _face_app  # noqa: PLW0603
+    global _face_app
     if _face_app is not None:
         return _face_app
 

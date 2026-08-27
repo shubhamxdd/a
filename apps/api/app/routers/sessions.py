@@ -317,6 +317,9 @@ def preview_camera_frame(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera source not found.")
     frame = recognition_manager.get_preview_frame(session.id, camera.id)
     if frame is None:
+        health = recognition_manager.get_camera_health(session.id, camera.id)
+        if health.error:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=health.error)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera frame is not ready.")
     return Response(content=frame, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
 
