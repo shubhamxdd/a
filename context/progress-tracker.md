@@ -48,7 +48,7 @@
 - Enlarged student enrollment camera preview for better self-framing and added camera/upload/mixed enrollment options with retake controls.
 - Reduced recognition sampling and preview latency by separating continuous frame reads from face-processing intervals and adding a one-frame capture buffer hint.
 - Added recognized-name and unknown-face overlays directly to teacher preview frames, including color-coded face boxes.
-- Added a teacher camera-source selector so every enabled recognition worker, including IP streams and video files, can be viewed during an active session.
+- Replaced the teacher live camera source selector with a responsive multi-camera grid; every enabled room camera now displays and polls independently during an active attendance session, with the feed panel expanded across the desktop setup area for larger previews.
 - Added source-type labels, aspect-preserving preview rendering, and a reachability hint while waiting for an IP/file source frame.
 - Verified the multi-source preview UI with strict TypeScript, Vite build, and `git diff --check`.
 - Added student-only attendance history and summary analytics with membership ownership checks; effective statuses reflect latest teacher corrections without exposing other students.
