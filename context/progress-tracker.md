@@ -13,7 +13,7 @@
 - Product scope, architecture, attendance rules, UI direction, and monorepo structure agreed.
 - Context templates populated with the current specification.
 - Created the monorepo workspace layout, Docker Compose PostgreSQL service, environment templates, API dependency manifests, and media-storage boundary.
-- Created the isolated API virtual environment; compiled dlib 20.0.1; installed and verified FastAPI, face_recognition, and OpenCV imports.
+- Created the isolated API virtual environment; installed and verified FastAPI, InsightFace, and OpenCV imports.
 - Added a repeatable local recognition and camera-source verification script.
 - Started and verified the local PostgreSQL Docker service; it is healthy and accepting connections on port 5432.
 - Verified physical laptop webcam access locally: camera index `0` opened successfully and produced a `640×480` frame.
@@ -28,7 +28,7 @@
 - Connected live sightings polling to a bounded recent-detections panel in the teacher workspace, including recognized students and anonymous unknown faces.
 - Verified the new ORM mappings, database table creation, API startup, OpenAPI class routes, and Ruff checks against PostgreSQL.
 - Implemented attendance-session, sighting, and automated attendance-record persistence.
-- Implemented one independent OpenCV/face-recognition worker per enabled camera source, sampled once per second with a face-distance threshold below `0.5`.
+- Implemented one independent OpenCV/InsightFace ArcFace worker per enabled camera source, sampled once per second with a cosine-similarity threshold of `0.5`.
 - Implemented five-second cross-camera (not same-camera) de-duplication and final Present/Late/Absent calculation using the agreed rolling five-minute, three-sighting rule.
 - Added a teacher-only live-sightings endpoint for recognition verification before a session ends.
 - Added an OpenCV camera-preview utility to visually validate webcam, IP-stream, and video-file sources outside the attendance worker.
@@ -79,6 +79,7 @@
 - Added guided student enrollment capture using MediaPipe Face Landmarker: the browser guides the student through front, left, and right poses, automatically captures stable poses, supports review/removal and scan-again, and retains three-image upload as a fallback.
 - Improved mobile enrollment camera UX with an explicit stop-camera control and portrait-friendly, non-cropped camera framing while preserving the wider desktop layout.
 - Verified the frontend refactor with the strict TypeScript check, Vite production build, and `git diff --check`.
+- Migrated face recognition engine from dlib/face_recognition to InsightFace ArcFace (buffalo_l model). Enrollment and recognition workers now produce 512-d ArcFace embeddings and use cosine similarity (>= 0.5) instead of L2 distance (< 0.5). Existing students must re-enroll because embedding dimensionality changed from 128 to 512. Removed the setuptools<81 compatibility pin since it was only needed for face_recognition_models' pkg_resources import.
 
 ## In Progress
 
@@ -107,7 +108,7 @@
 
 ## Session Notes
 
-- `face_recognition_models` requires `setuptools<81` because it still imports `pkg_resources`; this compatibility pin is captured in `apps/api/requirements.txt`.
 - Camera sources are web-app configuration managed by teachers. OpenCV supports local indexes, IP-camera URLs, and video-file paths through the same source field.
+- InsightFace buffalo_l ArcFace model auto-downloads on first use (~300 MB). Each recognition worker thread gets its own FaceAnalysis instance for thread safety.
 - Live student enrollment and recognition have been manually verified with real reference images and a camera source; local biometric media remains untracked and must not be committed.
 - Start a session only after a class has at least one enabled camera source; recognition workers run inside the FastAPI process and stop when the session stops or the API shuts down.

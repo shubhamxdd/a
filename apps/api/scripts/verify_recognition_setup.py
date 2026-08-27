@@ -5,8 +5,8 @@ from __future__ import annotations
 import argparse
 
 import cv2
-import dlib
-import face_recognition
+import insightface
+import onnxruntime
 
 
 def parse_source(value: str) -> int | str:
@@ -23,9 +23,17 @@ def main() -> int:
     )
     arguments = parser.parse_args()
 
-    print(f"dlib={dlib.__version__}")
-    print(f"face_recognition={face_recognition.__version__}")
+    print(f"insightface={insightface.__version__}")
+    print(f"onnxruntime={onnxruntime.__version__}")
     print(f"opencv={cv2.__version__}")
+
+    # Verify InsightFace model loading
+    app = insightface.app.FaceAnalysis(
+        name="buffalo_l",
+        providers=["CPUExecutionProvider"],
+    )
+    app.prepare(ctx_id=0, det_size=(640, 640))
+    print("insightface_model_loaded=True")
 
     capture = cv2.VideoCapture(parse_source(arguments.source))
     if not capture.isOpened():
@@ -40,6 +48,10 @@ def main() -> int:
 
     print(f"camera_opened=True source={arguments.source}")
     print(f"camera_frame_read=True shape={frame.shape}")
+
+    # Verify face detection on the captured frame
+    faces = app.get(frame)
+    print(f"detected_faces={len(faces)}")
     return 0
 
 

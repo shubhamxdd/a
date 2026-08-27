@@ -1,4 +1,4 @@
-"""Independent OpenCV/face-recognition workers backed by persisted sightings."""
+"""Independent OpenCV/InsightFace ArcFace workers backed by persisted sightings."""
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ from time import monotonic
 from uuid import UUID
 
 import cv2
-import face_recognition
 import numpy as np
 from app.database import SessionLocal
 from app.models import (
@@ -22,9 +21,15 @@ from app.models import (
     Sighting,
     User,
 )
+from app.services.face_engine import create_worker_face_app
 from sqlalchemy import select
 
-MATCH_DISTANCE = 0.5
+# Cosine similarity threshold — a match must be >= this value (higher is better).
+# With dlib/face_recognition, the invariant was distance < 0.5 (lower is better).
+# ArcFace normed embeddings yield cosine similarity in [−1, 1]; practical matches
+# fall in [0.2, 1.0].  A threshold of 0.5 rejects weak and false positives while
+# accepting confident same-person matches.
+MATCH_SIMILARITY = 0.5
 SAMPLE_INTERVAL_SECONDS = 0.5
 PREVIEW_WIDTH = 640
 UNKNOWN_EVENT_INTERVAL = timedelta(seconds=5)
@@ -120,10 +125,19 @@ def run_worker(
     """Read one camera source and independently log confident student matches."""
     capture = cv2.VideoCapture(parse_capture_source(camera.source_type, camera.source))
     capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-    known_vectors = np.array(known_embeddings)
+    known_vectors = np.array(known_embeddings, dtype=np.float32)
+    # Normalize known vectors for cosine similarity via dot product
+    norms = np.linalg.norm(known_vectors, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    known_vectors = known_vectors / norms
+
     last_processed_at = 0.0
     last_preview_at = 0.0
     annotations: list[tuple[int, int, int, int, str, tuple[int, int, int]]] = []
+
+    # Each worker thread gets its own InsightFace instance for thread safety.
+    face_app = create_worker_face_app(det_size=(320, 320))
+
     try:
         while not stop_event.is_set():
             read_ok, frame = capture.read()
@@ -140,23 +154,26 @@ def run_worker(
                 last_processed_at = now
                 annotations = []
                 small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
-                rgb_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
-                locations = face_recognition.face_locations(rgb_frame)
-                encodings = face_recognition.face_encodings(rgb_frame, locations)
-                for location, encoding in zip(locations, encodings):
-                    top, right, bottom, left = (value * 4 for value in location)
+                faces = face_app.get(small_frame)
+                for face in faces:
+                    bbox = face.bbox.astype(int)
+                    # Scale bounding box coordinates back to original frame size
+                    left, top, right, bottom = (int(v * 4) for v in bbox)
                     label = "Unknown"
                     color = (80, 80, 220)
                     matched = False
-                    distances = face_recognition.face_distance(known_vectors, encoding)
-                    if distances.size:
-                        match_index = int(np.argmin(distances))
-                        distance = float(distances[match_index])
-                        if distance < MATCH_DISTANCE:
+
+                    embedding = face.normed_embedding.astype(np.float32)
+                    # Cosine similarity via dot product (both vectors are normalized)
+                    similarities = known_vectors @ embedding
+                    if similarities.size:
+                        match_index = int(np.argmax(similarities))
+                        similarity = float(similarities[match_index])
+                        if similarity >= MATCH_SIMILARITY:
                             matched = True
                             label = known_student_names[match_index]
                             color = (70, 180, 90)
-                            log_sighting(session_id, known_student_ids[match_index], camera.id, distance)
+                            log_sighting(session_id, known_student_ids[match_index], camera.id, similarity)
                     if not matched:
                         log_unknown_sighting(session_id, camera.id)
                     annotations.append((top, right, bottom, left, label, color))
