@@ -76,6 +76,8 @@
 - Refactored the web frontend out of the monolithic `App.tsx` into focused auth, admin, teacher, student, and shared UI component modules while preserving existing flows and API contracts. `App.tsx` now owns only session restoration, role routing, and the authenticated shell.
 - Made the teacher registration invite-code field visible and required, with client-side submission blocking when the code is empty.
 - Added email-or-roll-number login: all roles retain email login, and students can authenticate with their unique roll number and password through the same bounded login endpoint.
+- Hardened recognition session startup and diagnostics: installed the declared InsightFace/ONNX dependencies in the API virtualenv, fixed camera-health initialization races and empty-enrollment crashes, exposed worker/camera errors to preview and insights clients, and guarded zero-window insights calculations.
+- Fixed mixed legacy/current enrollment embeddings crashing recognition workers: workers now ignore malformed or non-512-dimensional vectors while preserving valid student alignment, allowing IP/webcam preview and recognition to continue.
 - Added guided student enrollment capture using MediaPipe Face Landmarker: the browser guides the student through front, left, and right poses, automatically captures stable poses, supports review/removal and scan-again, and retains three-image upload as a fallback.
 - Improved mobile enrollment camera UX with an explicit stop-camera control and portrait-friendly, non-cropped camera framing while preserving the wider desktop layout.
 - Verified the frontend refactor with the strict TypeScript check, Vite production build, and `git diff --check`.

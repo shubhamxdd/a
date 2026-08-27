@@ -255,6 +255,7 @@ class CameraInsightResponse(BaseModel):
     students_seen: int
     last_frame_at: datetime | None = None
     status: str = "unknown"
+    error: str | None = None
 
 
 class SessionInsightsResponse(BaseModel):

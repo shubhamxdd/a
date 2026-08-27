@@ -205,6 +205,7 @@ export interface CameraInsight {
   students_seen: number
   last_frame_at: string | null
   status: string
+  error: string | null
 }
 
 export interface SessionInsights {

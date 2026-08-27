@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -24,12 +25,15 @@ from app.models import (
 from app.services.face_engine import create_worker_face_app
 from sqlalchemy import select
 
+logger = logging.getLogger(__name__)
+
 # Cosine similarity threshold — a match must be >= this value (higher is better).
 # With dlib/face_recognition, the invariant was distance < 0.5 (lower is better).
 # ArcFace normed embeddings yield cosine similarity in [−1, 1]; practical matches
 # fall in [0.2, 1.0].  A threshold of 0.5 rejects weak and false positives while
 # accepting confident same-person matches.
 MATCH_SIMILARITY = 0.5
+ARCFACE_EMBEDDING_DIMENSION = 512
 SAMPLE_INTERVAL_SECONDS = 0.5
 PREVIEW_WIDTH = 640
 UNKNOWN_EVENT_INTERVAL = timedelta(seconds=5)
@@ -48,10 +52,49 @@ class CameraHealth:
     last_frame_at: datetime | None = None
     last_attempt_at: datetime | None = None
     status: str = "starting"
+    error: str | None = None
 
 
 def parse_capture_source(source_type: CameraSourceType, source: str) -> int | str:
     return int(source) if source_type is CameraSourceType.WEBCAM and source.isdigit() else source
+
+
+def prepare_known_faces(
+    student_ids: list[UUID],
+    student_names: list[str],
+    embeddings: list[list[float]],
+) -> tuple[list[UUID], list[str], np.ndarray]:
+    """Keep valid ArcFace vectors while preserving student/name alignment."""
+    valid_ids: list[UUID] = []
+    valid_names: list[str] = []
+    valid_vectors: list[np.ndarray] = []
+    for student_id, student_name, embedding in zip(student_ids, student_names, embeddings, strict=True):
+        try:
+            vector = np.asarray(embedding, dtype=np.float32)
+        except (TypeError, ValueError):
+            logger.warning("Ignoring malformed face embedding for student=%s", student_id)
+            continue
+        if vector.shape != (ARCFACE_EMBEDDING_DIMENSION,) or not np.all(np.isfinite(vector)):
+            logger.warning(
+                "Ignoring incompatible face embedding for student=%s: expected=%s actual=%s",
+                student_id,
+                ARCFACE_EMBEDDING_DIMENSION,
+                vector.size,
+            )
+            continue
+        norm = float(np.linalg.norm(vector))
+        if norm == 0:
+            logger.warning("Ignoring zero-length face embedding for student=%s", student_id)
+            continue
+        valid_ids.append(student_id)
+        valid_names.append(student_name)
+        valid_vectors.append(vector / norm)
+    vectors = (
+        np.stack(valid_vectors)
+        if valid_vectors
+        else np.empty((0, ARCFACE_EMBEDDING_DIMENSION), dtype=np.float32)
+    )
+    return valid_ids, valid_names, vectors
 
 
 def log_sighting(session_id: UUID, student_id: UUID, camera_id: UUID, distance: float) -> None:
@@ -123,20 +166,38 @@ def run_worker(
     stop_event: threading.Event,
 ) -> None:
     """Read one camera source and independently log confident student matches."""
-    capture = cv2.VideoCapture(parse_capture_source(camera.source_type, camera.source))
-    capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-    known_vectors = np.array(known_embeddings, dtype=np.float32)
-    # Normalize known vectors for cosine similarity via dot product
-    norms = np.linalg.norm(known_vectors, axis=1, keepdims=True)
-    norms[norms == 0] = 1.0
-    known_vectors = known_vectors / norms
+    known_student_ids, known_student_names, known_vectors = prepare_known_faces(
+        known_student_ids,
+        known_student_names,
+        known_embeddings,
+    )
+    if known_embeddings and not known_vectors.size:
+        logger.error(
+            "No compatible ArcFace embeddings are available for session=%s; camera preview will continue but all faces will be unknown.",
+            session_id,
+        )
 
     last_processed_at = 0.0
     last_preview_at = 0.0
     annotations: list[tuple[int, int, int, int, str, tuple[int, int, int]]] = []
 
     # Each worker thread gets its own InsightFace instance for thread safety.
-    face_app = create_worker_face_app(det_size=(320, 320))
+    try:
+        face_app = create_worker_face_app(det_size=(320, 320))
+    except Exception as error:
+        message = f"Recognition engine unavailable: {error}"
+        logger.exception("Camera worker failed to initialize: camera=%s source=%s", camera.id, camera.source)
+        recognition_manager.mark_camera_error(session_id, camera.id, message)
+        return
+
+    capture = cv2.VideoCapture(parse_capture_source(camera.source_type, camera.source))
+    capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    if not capture.isOpened():
+        message = f"Camera source could not be opened: {camera.source}"
+        logger.error("Camera worker could not open source: camera=%s type=%s source=%s", camera.id, camera.source_type.value, camera.source)
+        recognition_manager.mark_camera_error(session_id, camera.id, message)
+        capture.release()
+        return
 
     try:
         while not stop_event.is_set():
@@ -164,9 +225,9 @@ def run_worker(
                     matched = False
 
                     embedding = face.normed_embedding.astype(np.float32)
-                    # Cosine similarity via dot product (both vectors are normalized)
-                    similarities = known_vectors @ embedding
-                    if similarities.size:
+                    if known_vectors.size:
+                        # Cosine similarity via dot product; both vectors are normalized.
+                        similarities = known_vectors @ embedding
                         match_index = int(np.argmax(similarities))
                         similarity = float(similarities[match_index])
                         if similarity >= MATCH_SIMILARITY:
@@ -200,6 +261,10 @@ def run_worker(
                         (PREVIEW_WIDTH, int(frame.shape[0] * PREVIEW_WIDTH / frame.shape[1])),
                     )
                 recognition_manager.publish_frame(session_id, camera.id, preview)
+    except Exception as error:
+        message = f"Camera worker stopped unexpectedly: {error}"
+        logger.exception("Camera worker crashed: camera=%s source=%s", camera.id, camera.source)
+        recognition_manager.mark_camera_error(session_id, camera.id, message)
     finally:
         capture.release()
 
@@ -224,6 +289,13 @@ class RecognitionManager:
             elif health.last_frame_at is None or (now - health.last_frame_at).total_seconds() > 5:
                 health.status = "offline"
 
+    def mark_camera_error(self, session_id: UUID, camera_id: UUID, error: str) -> None:
+        with self._lock:
+            health = self._camera_health.setdefault((session_id, camera_id), CameraHealth())
+            health.status = "error"
+            health.error = error
+            health.last_attempt_at = datetime.now(UTC)
+
     def get_camera_health(self, session_id: UUID, camera_id: UUID) -> CameraHealth:
         with self._lock:
             health = self._camera_health.get((session_id, camera_id))
@@ -231,7 +303,7 @@ class RecognitionManager:
                 return CameraHealth(status="offline")
             if health.last_frame_at and (datetime.now(UTC) - health.last_frame_at).total_seconds() > 5:
                 health.status = "degraded"
-            return CameraHealth(health.last_frame_at, health.last_attempt_at, health.status)
+            return CameraHealth(health.last_frame_at, health.last_attempt_at, health.status, health.error)
 
     def publish_frame(self, session_id: UUID, camera_id: UUID, frame: np.ndarray) -> None:
         """Keep one bounded JPEG preview per worker without retaining raw frame history."""
@@ -266,6 +338,8 @@ class RecognitionManager:
             embeddings = [embedding for _student_id, _name, embedding in enrolled]
             handles: list[WorkerHandle] = []
             for camera in sources:
+                self._camera_health[(session_id, camera.id)] = CameraHealth()
+            for camera in sources:
                 stop_event = threading.Event()
                 thread = threading.Thread(
                     target=run_worker,
@@ -276,8 +350,6 @@ class RecognitionManager:
                 thread.start()
                 handles.append(WorkerHandle(camera_id=camera.id, stop_event=stop_event, thread=thread))
             self._workers[session_id] = handles
-            for camera in sources:
-                self._camera_health[(session_id, camera.id)] = CameraHealth()
             return len(handles)
 
     def stop_session(self, session_id: UUID) -> None:
