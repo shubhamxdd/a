@@ -8,7 +8,7 @@ Local-first, multi-camera classroom attendance with InsightFace ArcFace recognit
 - **Guided Student Onboarding**: Students enroll with browser camera captures guided by MediaPipe face pose detection (front, left, right poses) or file uploads.
 - **Flexible Authentication**: Students can sign in using either their email address or unique roll number with password.
 - **InsightFace ArcFace Engine**: High-accuracy 512-dimensional ArcFace face embeddings and cosine similarity matching (>= 0.5 threshold) across independent camera workers.
-- **Efficient Inference Cadence**: 15-second recognition inference sampling cadence minimizes CPU/GPU overhead while delivering smooth live preview streams.
+- **Efficient Inference Cadence**: Teachers pick the recognition interval (15s, 30s, 1m, 2m, or 5m); workers run inference on one frame per interval, minimizing CPU/GPU overhead while delivering smooth live preview streams.
 - **Configurable Presence Windows**: Attendance calculated over flexible qualification windows (15s, 30s, 1m, 2m, 5m, 10m, 15m, 30m, or 60m).
 - **Teacher Operational Controls**: Teachers run room-based sessions, search enrolled students by name or roll number, delete obsolete completed sessions, review presence coverage, and record append-only manual corrections.
 - **Teacher Intelligence & AI Assistant**: Deep session insights (timeline replay, camera health, review queue, CSV exports) and natural-language attendance queries via optional OpenRouter integration.
@@ -62,7 +62,7 @@ flowchart LR
 
 ## Recognition & Camera preview flow
 
-The backend uses **InsightFace ArcFace** (`buffalo_l` model) running thread-safe `FaceAnalysis` instances per worker thread. Inference runs on a 15-second sampling cadence (or matched to the qualification window) while continuous frame grabbing ensures smooth preview streaming.
+The backend uses **InsightFace ArcFace** (`buffalo_l` model) running thread-safe `FaceAnalysis` instances per worker thread. Inference runs on the teacher-selected recognition interval (15 s–5 min, default 15 s, always within the attendance window) while continuous frame grabbing ensures smooth preview streaming.
 
 The browser does not open direct camera streams to physical IP webcams. The API recognition worker owns each configured source and publishes its latest annotated JPEG frame through an authenticated teacher endpoint.
 
@@ -73,7 +73,7 @@ sequenceDiagram
     participant API as Authenticated preview API
     participant T as Teacher browser
     C->>W: Grab frames continuously
-    W->>W: ArcFace inference (15s cadence) & draw overlays
+    W->>W: ArcFace inference (per selected interval) & draw overlays
     W->>API: Maintain latest in-memory JPEG
     T->>API: Poll selected source preview
     API-->>T: Latest annotated JPEG frame
@@ -220,7 +220,7 @@ context/        Product, architecture, UI, standards, and progress documentation
 
 ## Feature status & key implementations
 
-- **Face Recognition**: InsightFace ArcFace (`buffalo_l`) 512-d embeddings, cosine similarity threshold >= 0.5, 15-second inference sampling interval.
+- **Face Recognition**: InsightFace ArcFace (`buffalo_l`) 512-d embeddings, cosine similarity threshold >= 0.5, teacher-configurable recognition interval (15 s–5 min, default 15 s).
 - **Enrollment**: Browser MediaPipe Face Landmarker pose guidance (front, left, right), image file upload fallback, roll-number capture.
 - **Authentication**: JWT token-based auth, email or roll number login for students, invite-code protected admin and teacher registration.
 - **Room & Camera Management**: Admin-owned physical rooms, permanent room codes, room-level camera CRUD (webcam, IP/RTSP, video file).

@@ -136,6 +136,7 @@ class AttendanceSessionCreate(BaseModel):
     grace_period_minutes: int = Field(default=10, ge=0, le=120)
     minimum_sightings: int = Field(default=1, ge=1, le=20)
     qualification_window_minutes: float = Field(default=1.0, gt=0, le=60)
+    recognition_interval_seconds: int = Field(default=15, ge=5, le=600)
 
 
 class AttendanceSessionResponse(BaseModel):
@@ -151,6 +152,7 @@ class AttendanceSessionResponse(BaseModel):
     grace_period_minutes: int
     minimum_sightings: int
     qualification_window_minutes: float
+    recognition_interval_seconds: int
     presence_threshold_percentage: float = 70.0
 
 

@@ -74,6 +74,7 @@ def serialize_session(session: AttendanceSession) -> AttendanceSessionResponse:
         grace_period_minutes=session.grace_period_minutes,
         minimum_sightings=session.minimum_sightings,
         qualification_window_minutes=session.qualification_window_minutes,
+        recognition_interval_seconds=session.recognition_interval_seconds,
         presence_threshold_percentage=70.0,
     )
 
@@ -148,6 +149,11 @@ def start_session(
     )
     if enabled_camera_count is None:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="This room has no enabled camera sources.")
+    if payload.recognition_interval_seconds > payload.qualification_window_minutes * 60:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Recognition interval must not exceed the attendance window, otherwise entire windows can be missed.",
+        )
 
     session = AttendanceSession(
         class_id=classroom.id,
@@ -157,6 +163,7 @@ def start_session(
         grace_period_minutes=payload.grace_period_minutes,
         minimum_sightings=payload.minimum_sightings,
         qualification_window_minutes=payload.qualification_window_minutes,
+        recognition_interval_seconds=payload.recognition_interval_seconds,
     )
     db.add(session)
     db.commit()

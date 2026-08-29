@@ -127,7 +127,7 @@ export const api = {
   deleteCamera: (classId: string, cameraId: string) =>
     request<void>(`/classes/${classId}/camera-sources/${cameraId}`, { method: 'DELETE' }),
   listSessions: (classId: string) => request<AttendanceSession[]>(`/classes/${classId}/sessions`),
-  startSession: (classId: string, input: { title: string; room_code: string; qualification_window_minutes: number; grace_period_minutes: number }) =>
+  startSession: (classId: string, input: { title: string; room_code: string; qualification_window_minutes: number; recognition_interval_seconds: number; grace_period_minutes: number }) =>
     request<AttendanceSession>(`/classes/${classId}/sessions`, {
       method: 'POST',
       body: JSON.stringify({ ...input, minimum_sightings: 1 }),
