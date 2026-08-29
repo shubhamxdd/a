@@ -179,6 +179,7 @@ class AttendanceSession(Base):
     grace_period_minutes: Mapped[int] = mapped_column(default=10)
     minimum_sightings: Mapped[int] = mapped_column(default=3)
     qualification_window_minutes: Mapped[float] = mapped_column(Float, default=1.0)
+    recognition_interval_seconds: Mapped[int] = mapped_column(default=15)
 
     classroom: Mapped[Classroom] = relationship(back_populates="sessions")
     room: Mapped[Room | None] = relationship(back_populates="sessions")

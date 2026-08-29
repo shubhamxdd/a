@@ -86,6 +86,7 @@
 - Added student search by name and roll number in the teacher attendance review panel (per-session) and the class Students tab sidebar. Both use instant client-side filtering with search-aware empty states and filtered/total count indicators.
 - Added 15-second and 30-second attendance window options to teacher session setup and backend schemas (`qualification_window_minutes` updated to `float`). DB schema automatically converts integer columns to double precision for PostgreSQL compatibility. Updated UI coverage indicators from `min` to `windows`.
 - Updated README.md to accurately document InsightFace ArcFace 512-d embeddings, 15-second inference sampling cadence, flexible attendance qualification windows (15s–60m), MediaPipe guided pose enrollment, email or roll number login, teacher session deletion, and instant student searching.
+- Added teacher-configurable recognition interval, decoupled from the attendance window: sessions store `recognition_interval_seconds` (15 s–5 min, default 15 s) with a new selector in session setup. Workers pick exactly one frame per interval for ArcFace inference while frames keep streaming for live previews. The API rejects (and the UI blocks) intervals longer than the attendance window so no presence window is silently skipped; the live banner shows the active cadence.
 
 ## In Progress
 

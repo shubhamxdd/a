@@ -34,6 +34,10 @@ logger = logging.getLogger(__name__)
 # accepting confident same-person matches.
 MATCH_SIMILARITY = 0.5
 ARCFACE_EMBEDDING_DIMENSION = 512
+# Fallback cadence when a session has no stored recognition interval. Teachers
+# normally pick the per-session interval (15 s–5 min) when starting a session;
+# workers run ArcFace inference on exactly one frame per interval while frames
+# keep streaming for the live preview.
 SAMPLE_INTERVAL_SECONDS = 15.0
 PREVIEW_WIDTH = 640
 UNKNOWN_EVENT_INTERVAL = timedelta(seconds=5)
@@ -167,6 +171,9 @@ def run_worker(
     sample_interval_seconds: float = SAMPLE_INTERVAL_SECONDS,
 ) -> None:
     """Read one camera source and independently log confident student matches."""
+    # Frames keep streaming for the live preview; only inference is throttled
+    # to one picked frame per teacher-selected interval.
+    sample_interval_seconds = max(1.0, float(sample_interval_seconds))
     known_student_ids, known_student_names, known_vectors = prepare_known_faces(
         known_student_ids,
         known_student_names,
@@ -337,7 +344,8 @@ class RecognitionManager:
             student_ids = [student_id for student_id, _name, _embedding in enrolled]
             student_names = [name for _student_id, name, _embedding in enrolled]
             embeddings = [embedding for _student_id, _name, embedding in enrolled]
-            sample_interval = max(15.0, float(session.qualification_window_minutes) * 60.0) if session and session.qualification_window_minutes else SAMPLE_INTERVAL_SECONDS
+            # Teacher-selected cadence: pick one frame per interval for inference.
+            sample_interval = float(session.recognition_interval_seconds or SAMPLE_INTERVAL_SECONDS)
             handles: list[WorkerHandle] = []
             for camera in sources:
                 self._camera_health[(session_id, camera.id)] = CameraHealth()

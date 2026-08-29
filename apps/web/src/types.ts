@@ -76,6 +76,7 @@ export interface AttendanceSession {
   grace_period_minutes: number
   minimum_sightings: number
   qualification_window_minutes: number
+  recognition_interval_seconds: number
   presence_threshold_percentage: number
 }
 
