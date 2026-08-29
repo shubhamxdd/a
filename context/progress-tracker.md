@@ -84,6 +84,8 @@
 - Migrated face recognition engine from dlib/face_recognition to InsightFace ArcFace (buffalo_l model). Enrollment and recognition workers now produce 512-d ArcFace embeddings and use cosine similarity (>= 0.5) instead of L2 distance (< 0.5). Existing students must re-enroll because embedding dimensionality changed from 128 to 512. Removed the setuptools<81 compatibility pin since it was only needed for face_recognition_models' pkg_resources import.
 - Added teacher session delete for completed sessions: API endpoint `DELETE /sessions/{session_id}` with ownership and active-session guards, cascading all sightings, attendance records, and override events. Teacher UI shows a trash icon on each completed session in the recent sessions list with a confirmation modal.
 - Added student search by name and roll number in the teacher attendance review panel (per-session) and the class Students tab sidebar. Both use instant client-side filtering with search-aware empty states and filtered/total count indicators.
+- Added 15-second and 30-second attendance window options to teacher session setup and backend schemas (`qualification_window_minutes` updated to `float`). DB schema automatically converts integer columns to double precision for PostgreSQL compatibility. Updated UI coverage indicators from `min` to `windows`.
+- Updated recognition worker sampling: model inference (`face_app.get`) runs on a 15-second interval (or configured qualification window) rather than every video frame or 0.5s, reducing CPU/GPU overhead while maintaining smooth video preview streaming.
 
 ## In Progress
 

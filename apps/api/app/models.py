@@ -11,6 +11,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     String,
     Text,
@@ -177,7 +178,7 @@ class AttendanceSession(Base):
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     grace_period_minutes: Mapped[int] = mapped_column(default=10)
     minimum_sightings: Mapped[int] = mapped_column(default=3)
-    qualification_window_minutes: Mapped[int] = mapped_column(default=5)
+    qualification_window_minutes: Mapped[float] = mapped_column(Float, default=1.0)
 
     classroom: Mapped[Classroom] = relationship(back_populates="sessions")
     room: Mapped[Room | None] = relationship(back_populates="sessions")

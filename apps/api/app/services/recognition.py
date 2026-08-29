@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 # accepting confident same-person matches.
 MATCH_SIMILARITY = 0.5
 ARCFACE_EMBEDDING_DIMENSION = 512
-SAMPLE_INTERVAL_SECONDS = 0.5
+SAMPLE_INTERVAL_SECONDS = 15.0
 PREVIEW_WIDTH = 640
 UNKNOWN_EVENT_INTERVAL = timedelta(seconds=5)
 DEDUPLICATION_WINDOW = timedelta(seconds=5)
@@ -164,6 +164,7 @@ def run_worker(
     known_student_names: list[str],
     known_embeddings: list[list[float]],
     stop_event: threading.Event,
+    sample_interval_seconds: float = SAMPLE_INTERVAL_SECONDS,
 ) -> None:
     """Read one camera source and independently log confident student matches."""
     known_student_ids, known_student_names, known_vectors = prepare_known_faces(
@@ -211,7 +212,7 @@ def run_worker(
 
             recognition_manager.mark_camera_attempt(session_id, camera.id, successful=True)
             now = monotonic()
-            if now - last_processed_at >= SAMPLE_INTERVAL_SECONDS:
+            if now - last_processed_at >= sample_interval_seconds:
                 last_processed_at = now
                 annotations = []
                 small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
@@ -336,6 +337,7 @@ class RecognitionManager:
             student_ids = [student_id for student_id, _name, _embedding in enrolled]
             student_names = [name for _student_id, name, _embedding in enrolled]
             embeddings = [embedding for _student_id, _name, embedding in enrolled]
+            sample_interval = max(15.0, float(session.qualification_window_minutes) * 60.0) if session and session.qualification_window_minutes else SAMPLE_INTERVAL_SECONDS
             handles: list[WorkerHandle] = []
             for camera in sources:
                 self._camera_health[(session_id, camera.id)] = CameraHealth()
@@ -343,7 +345,7 @@ class RecognitionManager:
                 stop_event = threading.Event()
                 thread = threading.Thread(
                     target=run_worker,
-                    args=(session_id, camera, student_ids, student_names, embeddings, stop_event),
+                    args=(session_id, camera, student_ids, student_names, embeddings, stop_event, sample_interval),
                     daemon=True,
                     name=f"recognition-{session_id}-{camera.id}",
                 )
