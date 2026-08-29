@@ -62,6 +62,8 @@ def ensure_room_schema_compatible() -> None:
                 col_type = str(session_columns["qualification_window_minutes"].get("type", "")).lower()
                 if "int" in col_type:
                     connection.execute(text("ALTER TABLE attendance_sessions ALTER COLUMN qualification_window_minutes TYPE DOUBLE PRECISION USING qualification_window_minutes::double precision"))
+            if "recognition_interval_seconds" not in session_columns:
+                connection.execute(text("ALTER TABLE attendance_sessions ADD COLUMN recognition_interval_seconds INTEGER NOT NULL DEFAULT 15"))
 
 
 def get_db() -> Generator[Session, None, None]:
