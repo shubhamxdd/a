@@ -90,55 +90,92 @@ Recognized enrolled faces display green bounding boxes with student names. Unkno
 - Multiple sightings across different cameras within the same window collapse into one credit.
 - If a camera source is offline or unreachable, its worker logs no sightings and reports degraded/offline status in teacher health insights.
 
-## Running locally
+## Developer Setup & Starting the App
 
-### 1. Configure the environment
+### Prerequisites
 
-Copy the environment templates and set appropriate invite codes and JWT secrets:
+- **Node.js** (v18+ or v22+) and **npm**
+- **Python** 3.10 or 3.11
+- **Docker** and **Docker Compose**
+
+---
+
+### 1. Environment Configuration
+
+Copy the sample environment configuration files:
 
 ```bash
 cp .env.example .env
 cp apps/api/.env.example apps/api/.env
 ```
 
-The API configuration includes:
+Configuration fields:
+- `DATABASE_URL`: PostgreSQL database connection string.
+- `JWT_SECRET`: Secret key used for signing JWT authentication tokens.
+- `TEACHER_INVITE_CODE`: Demo code required for teacher registration (e.g. `1234` or `SMART-TEACHER-DEMO`).
+- `ADMIN_INVITE_CODE`: Demo code required for admin registration (e.g. `1234` or `SMART-ADMIN-DEMO`).
+- `CORS_ORIGINS`: Allowed origins for API requests (default: `http://localhost:5173`).
+- `MEDIA_ROOT`: Path to store student reference photos (default: `storage`).
+- `OPENROUTER_API_KEY`: Optional key for the OpenRouter natural-language attendance assistant.
+- `VITE_API_BASE_URL`: API URL used by the frontend (default: `http://localhost:8000/api/v1`).
 
-- `DATABASE_URL`: PostgreSQL connection string.
-- `JWT_SECRET`: Secret used to sign authentication tokens.
-- `TEACHER_INVITE_CODE`: Required for teacher registration.
-- `ADMIN_INVITE_CODE`: Required to register the single local admin account.
-- `CORS_ORIGINS`: Comma-separated browser origins (defaults to `http://localhost:5173`).
-- `MEDIA_ROOT`: Directory for student enrollment reference photos.
-- `OPENROUTER_API_KEY`: Optional key for the teacher AI attendance assistant.
-- `OPENROUTER_MODEL`: Optional OpenRouter model override.
-- `VITE_API_BASE_URL`: Browser API endpoint (normally `http://localhost:8000/api/v1`).
+---
 
-### 2. Start PostgreSQL
+### 2. Option A: Full Docker Compose Setup (Quickest)
 
+To run both the PostgreSQL database and FastAPI backend in Docker containers:
+
+```bash
+# Build and start database + API services
+docker compose up --build -d
+
+# Install web dependencies and start Vite frontend
+npm install
+npm run dev:web
+```
+
+- **Frontend**: [http://localhost:5173](http://localhost:5173)
+- **API Backend**: [http://localhost:8000](http://localhost:8000)
+- **Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+---
+
+### 3. Option B: Local Development Setup (Hot-Reloading)
+
+#### Step 1: Start PostgreSQL Container
 ```bash
 docker compose up -d postgres
 ```
 
-### 3. Start the API
-
+#### Step 2: Set Up & Start Python API Backend
 ```bash
 cd apps/api
-.venv/bin/uvicorn app.main:app --reload
+
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start FastAPI development server with hot-reload
+uvicorn app.main:app --reload --port 8000
 ```
+*Note: On first launch, InsightFace will automatically download the `buffalo_l` model weights (~300 MB).*
 
-The API is accessible at `http://localhost:8000`. Check `http://localhost:8000/health` or open `http://localhost:8000/docs` for interactive OpenAPI documentation.
-
-*Note: On first execution, InsightFace automatically downloads the `buffalo_l` model (~300 MB).*
-
-### 4. Start the web app
-
-From the repository root:
-
+#### Step 3: Install & Start React Web Frontend
+From the root directory in a new terminal window:
 ```bash
+# Install node dependencies
+npm install
+
+# Start Vite dev server
 npm run dev:web
 ```
 
-Open `http://localhost:5173`.
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+---
 
 ## How To Use
 
