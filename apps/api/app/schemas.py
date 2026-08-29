@@ -135,7 +135,7 @@ class AttendanceSessionCreate(BaseModel):
     room_code: str = Field(min_length=1, max_length=16)
     grace_period_minutes: int = Field(default=10, ge=0, le=120)
     minimum_sightings: int = Field(default=1, ge=1, le=20)
-    qualification_window_minutes: int = Field(default=1, ge=1, le=60)
+    qualification_window_minutes: float = Field(default=1.0, gt=0, le=60)
 
 
 class AttendanceSessionResponse(BaseModel):
@@ -150,7 +150,7 @@ class AttendanceSessionResponse(BaseModel):
     ended_at: datetime | None
     grace_period_minutes: int
     minimum_sightings: int
-    qualification_window_minutes: int
+    qualification_window_minutes: float
     presence_threshold_percentage: float = 70.0
 
 

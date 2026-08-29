@@ -54,10 +54,14 @@ def ensure_room_schema_compatible() -> None:
                 connection.execute(text("ALTER TABLE camera_sources ADD COLUMN room_id UUID REFERENCES rooms(id) ON DELETE RESTRICT"))
                 connection.execute(text("CREATE INDEX ix_camera_sources_room_id ON camera_sources (room_id)"))
         if "attendance_sessions" in table_names:
-            columns = {column["name"] for column in inspect(engine).get_columns("attendance_sessions")}
-            if "room_id" not in columns:
+            session_columns = {column["name"]: column for column in inspect(engine).get_columns("attendance_sessions")}
+            if "room_id" not in session_columns:
                 connection.execute(text("ALTER TABLE attendance_sessions ADD COLUMN room_id UUID REFERENCES rooms(id) ON DELETE RESTRICT"))
                 connection.execute(text("CREATE INDEX ix_attendance_sessions_room_id ON attendance_sessions (room_id)"))
+            if "qualification_window_minutes" in session_columns:
+                col_type = str(session_columns["qualification_window_minutes"].get("type", "")).lower()
+                if "int" in col_type:
+                    connection.execute(text("ALTER TABLE attendance_sessions ALTER COLUMN qualification_window_minutes TYPE DOUBLE PRECISION USING qualification_window_minutes::double precision"))
 
 
 def get_db() -> Generator[Session, None, None]:

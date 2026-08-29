@@ -76,7 +76,7 @@ export function AttendancePanel({ attendance, session, insights, sightings, onAs
                 <tr key={row.student_id} className="border-t border-[var(--line)]">
                   <td className="px-5 py-4 text-sm font-bold">{row.student_name}</td>
                   <td className="tabular px-5 py-4 text-sm text-[var(--muted)]">{row.roll_number}</td>
-                  <td className="tabular px-5 py-4 text-sm text-[var(--muted)]">{row.observed_windows}/{row.eligible_windows} min <span className="font-bold text-[var(--ink)]">({row.presence_percentage}%)</span></td>
+                  <td className="tabular px-5 py-4 text-sm text-[var(--muted)]">{row.observed_windows}/{row.eligible_windows} windows <span className="font-bold text-[var(--ink)]">({row.presence_percentage}%)</span></td>
                   <td className="px-5 py-4 text-xs text-[var(--muted)]">{(() => { const insight = insights?.students.find((student) => student.student_id === row.student_id); return insight?.first_seen_at ? `First ${new Date(insight.first_seen_at).toLocaleTimeString()} · Last ${insight.last_seen_at ? new Date(insight.last_seen_at).toLocaleTimeString() : '—'} · ${insight.cameras_seen} camera${insight.cameras_seen === 1 ? '' : 's'}` : 'No sightings' })()}</td>
                   <td className="px-5 py-4"><StatusBadge status={row.automated_status} /></td>
                   <td className="px-5 py-4"><StatusBadge status={row.effective_status} /></td>

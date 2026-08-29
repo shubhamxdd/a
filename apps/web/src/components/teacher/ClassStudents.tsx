@@ -109,7 +109,7 @@ export function ClassStudents({ classroom, studentId, onSelectStudent }: { class
                         <tr key={entry.session_id} className="border-t border-[var(--line)]">
                           <td className="px-5 py-4 text-sm font-bold">{entry.session_title}</td>
                           <td className="px-5 py-4 text-sm text-[var(--muted)]">{new Date(entry.session_started_at).toLocaleDateString()}</td>
-                          <td className="tabular px-5 py-4 text-sm text-[var(--muted)]">{entry.observed_windows}/{entry.eligible_windows} min <span className="font-bold text-[var(--ink)]">({entry.presence_percentage}%)</span></td>
+                          <td className="tabular px-5 py-4 text-sm text-[var(--muted)]">{entry.observed_windows}/{entry.eligible_windows} windows <span className="font-bold text-[var(--ink)]">({entry.presence_percentage}%)</span></td>
                           <td className="px-5 py-4"><StatusBadge status={entry.automated_status} /></td>
                           <td className="px-5 py-4"><StatusBadge status={entry.effective_status} /></td>
                         </tr>

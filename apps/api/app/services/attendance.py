@@ -28,7 +28,7 @@ def session_window_count(session: AttendanceSession) -> int:
     """Return the number of configured presence windows in a completed session."""
     if session.ended_at is None:
         return 0
-    window_seconds = max(1, session.qualification_window_minutes) * 60
+    window_seconds = max(1.0, float(session.qualification_window_minutes) * 60.0)
     duration_seconds = max(float(window_seconds), (session.ended_at - session.started_at).total_seconds())
     return max(1, math.ceil(duration_seconds / window_seconds))
 
@@ -36,7 +36,7 @@ def session_window_count(session: AttendanceSession) -> int:
 def observed_window_indexes(session: AttendanceSession, sightings: list[Sighting]) -> set[int]:
     """Collapse any number of camera sightings into one configured presence window."""
     total_windows = session_window_count(session)
-    window_seconds = max(1, session.qualification_window_minutes) * 60
+    window_seconds = max(1.0, float(session.qualification_window_minutes) * 60.0)
     indexes: set[int] = set()
     for sighting in sightings:
         offset_seconds = (sighting.matched_at - session.started_at).total_seconds()
