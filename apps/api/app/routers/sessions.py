@@ -179,6 +179,20 @@ def stop_session(session_id: UUID, teacher: TeacherUser, db: DbSession) -> Atten
     return serialize_session(session)
 
 
+@router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_session(session_id: UUID, teacher: TeacherUser, db: DbSession) -> Response:
+    """Permanently delete a completed session and all its sightings, records, and overrides."""
+    session = get_owned_session(session_id, teacher, db)
+    if session.status is SessionStatus.ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Stop the active session before deleting it.",
+        )
+    db.delete(session)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/classes/{class_id}/sessions", response_model=list[AttendanceSessionResponse])
 def list_sessions(class_id: UUID, teacher: TeacherUser, db: DbSession) -> list[AttendanceSessionResponse]:
     get_owned_classroom(class_id, teacher, db)
