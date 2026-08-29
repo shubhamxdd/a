@@ -11,10 +11,31 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U attendance -d smart_attendance"]
+      test: [ "CMD-SHELL", "pg_isready -U attendance -d smart_attendance" ]
       interval: 5s
       timeout: 5s
       retries: 10
 
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: smart-attendance-api
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://attendance:attendance_dev_password@postgres:5432/smart_attendance
+      JWT_SECRET: fhh786yt874uirhj44hiqh
+      TEACHER_INVITE_CODE: 1234
+      ADMIN_INVITE_CODE: 1234
+      MEDIA_ROOT: storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - api_storage:/app/storage
+
 volumes:
   postgres_data:
+  api_storage:
+
