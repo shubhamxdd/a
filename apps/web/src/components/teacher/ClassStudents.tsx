@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BarChart3, CalendarDays, CheckCircle2, Clock3, GraduationCap, Mail, User as UserIcon } from 'lucide-react'
+import { BarChart3, CalendarDays, CheckCircle2, Clock3, GraduationCap, Mail, Search, User as UserIcon } from 'lucide-react'
 import { api } from '../../api'
 import type { AttendanceSummary, ClassStudent, Classroom } from '../../types'
 import { Empty, Metric, Notice, Panel, StatusBadge } from '../ui/primitives'
@@ -9,6 +9,7 @@ export function ClassStudents({ classroom, studentId, onSelectStudent }: { class
   const [attendance, setAttendance] = useState<AttendanceSummary | null>(null)
   const [error, setError] = useState('')
   const [loadingAttendance, setLoadingAttendance] = useState(false)
+  const [search, setSearch] = useState('')
 
   useEffect(() => { setError(''); api.listClassStudents(classroom.id).then(setStudents).catch((e) => setError(e.message)) }, [classroom.id])
 
@@ -20,19 +21,37 @@ export function ClassStudents({ classroom, studentId, onSelectStudent }: { class
 
   const selected = students.find((student) => student.id === studentId) ?? null
 
+  const query = search.trim().toLowerCase()
+  const filtered = query
+    ? students.filter((student) => student.full_name.toLowerCase().includes(query) || student.roll_number.toLowerCase().includes(query))
+    : students
+
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
       <div className="rounded-xl border border-[var(--line)] bg-white">
-        <div className="flex items-center justify-between border-b border-[var(--line)] p-5">
-          <h2 className="font-semibold">Enrolled students</h2>
-          <span className="tabular text-xs text-[var(--muted)]">{students.length}</span>
+        <div className="border-b border-[var(--line)] p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold">Enrolled students</h2>
+            <span className="tabular text-xs text-[var(--muted)]">{filtered.length}/{students.length}</span>
+          </div>
+          <div className="relative mt-3">
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+            <input
+              id="class-student-search"
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name or roll…"
+              className="w-full rounded-md border border-[var(--line)] bg-white py-2 pl-8 pr-3 text-sm outline-none transition placeholder:text-[#a1aaa4] focus:border-[var(--green)] focus:ring-2 focus:ring-[#d8ebdf]"
+            />
+          </div>
         </div>
         {error && <div className="p-4"><Notice tone="error">{error}</Notice></div>}
-        {students.length === 0 ? (
-          <div className="p-5"><Empty text="No students have joined this class yet." /></div>
+        {filtered.length === 0 ? (
+          <div className="p-5"><Empty text={query ? 'No students match your search.' : 'No students have joined this class yet.'} /></div>
         ) : (
           <div className="max-h-[560px] overflow-y-auto">
-            {students.map((student) => (
+            {filtered.map((student) => (
               <button
                 key={student.id}
                 onClick={() => onSelectStudent(student.id)}

@@ -134,6 +134,8 @@ export const api = {
     }),
   stopSession: (sessionId: string) =>
     request<AttendanceSession>(`/sessions/${sessionId}/stop`, { method: 'POST' }),
+  deleteSession: (sessionId: string) =>
+    request<void>(`/sessions/${sessionId}`, { method: 'DELETE' }),
   listAttendance: (sessionId: string) =>
     request<AttendanceRecord[]>(`/sessions/${sessionId}/attendance`),
   previewCamera: (sessionId: string, cameraId: string) =>

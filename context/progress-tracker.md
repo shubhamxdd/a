@@ -82,6 +82,8 @@
 - Improved mobile enrollment camera UX with an explicit stop-camera control and portrait-friendly, non-cropped camera framing while preserving the wider desktop layout.
 - Verified the frontend refactor with the strict TypeScript check, Vite production build, and `git diff --check`.
 - Migrated face recognition engine from dlib/face_recognition to InsightFace ArcFace (buffalo_l model). Enrollment and recognition workers now produce 512-d ArcFace embeddings and use cosine similarity (>= 0.5) instead of L2 distance (< 0.5). Existing students must re-enroll because embedding dimensionality changed from 128 to 512. Removed the setuptools<81 compatibility pin since it was only needed for face_recognition_models' pkg_resources import.
+- Added teacher session delete for completed sessions: API endpoint `DELETE /sessions/{session_id}` with ownership and active-session guards, cascading all sightings, attendance records, and override events. Teacher UI shows a trash icon on each completed session in the recent sessions list with a confirmation modal.
+- Added student search by name and roll number in the teacher attendance review panel (per-session) and the class Students tab sidebar. Both use instant client-side filtering with search-aware empty states and filtered/total count indicators.
 
 ## In Progress
 
