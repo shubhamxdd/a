@@ -12,7 +12,7 @@ two things it always auto-generates locally:
 ## Two apps in one
 
 This project is now a **Smart Classroom Attendance client** that talks to the
-FastAPI backend in `a/`, with the original **360° face-embedding demo**
+FastAPI backend in `apps/api/`, with the original **360° face-embedding demo**
 kept as a standalone tool.
 
 - **Attendance app (default flow):** launch → sign in / register → role
@@ -24,9 +24,12 @@ kept as a standalone tool.
     in-app, validated to contain exactly one face each), join classes by code,
     and view their attendance %, Present/Late/Absent counts, and session
     history.
+  - *Admins* can sign in, but room/camera administration lives in the web
+    dashboard — the mobile app simply confirms the account and points there.
   - Point the app at your backend from the login screen's **Server settings**
-    (default `http://10.0.2.2:8000` for the Android emulator; use your
-    machine's LAN IP from a physical device — the `/api/v1` suffix is added
+    (default `http://192.168.1.8:8000`, a development LAN IP — use
+    `http://10.0.2.2:8000` for the Android emulator or your machine's LAN IP
+    from a physical device; the `/api/v1` suffix is added
     automatically).
 - **Face embedding demo:** reachable from the login screen via *"Try the face
   embedding demo"* — the 360° scan described below that prints an embedding to
@@ -37,7 +40,7 @@ backend derives and stores the face embeddings, so the same records power the
 web dashboards and recognition workers.
 
 > **Where matching actually happens.** Attendance recognition runs entirely on
-> the backend (`a/`) using **InsightFace** — SCRFD face detection + landmark
+> the backend (`apps/api/`) using **InsightFace** — SCRFD face detection + landmark
 > alignment + ArcFace 512-d embeddings — over the room's CCTV/IP cameras. The
 > on-device **MobileFaceNet** model below powers only the standalone 360°
 > embedding demo; it is not used for attendance and its vectors are never sent
@@ -98,7 +101,7 @@ flutter run
    and averaged + L2-normalized into one identity embedding.
 5. The embedding is printed to the console as:
    ```
-   === FACE_EMBEDDING (dim=192) ===
+   === FACE_EMBEDDING (dim=512) ===
    [0.041233, -0.118820, ...]
    ```
 6. A result screen shows a short preview of the vector.
@@ -112,7 +115,9 @@ recreates the animated `.ask-ai-button` gradient/sheen.
 
 ## Notes
 
-- Minimum SDK is 23 (required by CameraX / ML Kit / TFLite deps).
+- Minimum SDK follows Flutter's default (`flutter.minSdkVersion` in
+  `android/app/build.gradle`); the CameraX / ML Kit / TFLite plugin set
+  generally needs API 23+, so raise it if Gradle or the Play Store requires.
 - No launcher icons are included — `flutter create` (step 1) generates
   the default ones; swap them via `flutter_launcher_icons` if you want
   custom branding.

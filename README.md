@@ -5,7 +5,7 @@ Local-first, multi-camera classroom attendance with InsightFace ArcFace recognit
 ## What the system does
 
 - **Admin Room & Camera Management**: A single invite-code-protected admin creates rooms, manages permanent room codes, and configures each room's cameras (webcams, IP streams, video files).
-- **Guided Student Onboarding**: Students enroll with browser camera captures guided by MediaPipe face pose detection (front, left, right poses) or file uploads.
+- **Guided Student Onboarding**: Students enroll with browser camera captures guided by MediaPipe face pose detection (front, left, right, up, and down poses) or file uploads.
 - **Flexible Authentication**: Students can sign in using either their email address or unique roll number with password.
 - **InsightFace ArcFace Engine**: High-accuracy 512-dimensional ArcFace face embeddings and cosine similarity matching (>= 0.5 threshold) across independent camera workers.
 - **Efficient Inference Cadence**: Teachers pick the recognition interval (15s, 30s, 1m, 2m, or 5m); workers run inference on one frame per interval, minimizing CPU/GPU overhead while delivering smooth live preview streams.
@@ -94,7 +94,7 @@ Recognized enrolled faces display green bounding boxes with student names. Unkno
 
 ### Prerequisites
 
-- **Node.js** (v18+ or v22+) and **npm**
+- **Node.js** (v18+) and **npm**
 - **Python** 3.10 or 3.11
 - **Docker** and **Docker Compose**
 
@@ -117,6 +117,7 @@ Configuration fields:
 - `CORS_ORIGINS`: Allowed origins for API requests (default: `http://localhost:5173`).
 - `MEDIA_ROOT`: Path to store student reference photos (default: `storage`).
 - `OPENROUTER_API_KEY`: Optional key for the OpenRouter natural-language attendance assistant.
+- `OPENROUTER_MODEL`: OpenRouter model used by the assistant.
 - `VITE_API_BASE_URL`: API URL used by the frontend (default: `http://localhost:8000/api/v1`).
 
 ---
@@ -182,7 +183,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 ### Student workflow
 
 1. Select **Register**, choose **Student**, and enter full name, roll number, email, and password.
-2. Grant camera access for guided **MediaPipe Face Landmarker** enrollment (capturing front, left, and right face poses automatically) or upload photo files.
+2. Grant camera access for guided **MediaPipe Face Landmarker** enrollment (capturing front, left, right, up, and down face poses automatically) or upload photo files.
 3. Submit registration. The API extracts 512-d ArcFace embeddings, stores reference media locally, and signs the student in.
 4. Sign in anytime using **Email** or **Roll Number** + password.
 5. Join classes using teacher join codes, and view personal attendance percentage, coverage windows, and session history.
@@ -202,7 +203,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 1. Select **Register**, choose **Teacher**, and provide the `TEACHER_INVITE_CODE`.
 2. Create classes and share unique class join codes with students.
-3. Start an attendance session by selecting a class, choosing a qualification window (15s to 60m), setting arrival grace minutes, and entering a room code.
+3. Start an attendance session by selecting a class, choosing a qualification window (15s to 60m) and recognition interval (15s to 5m), setting arrival grace minutes, and entering a room code.
 4. Live camera workers stream annotated previews and log sightings automatically.
 5. Use instant **Student Search** (by name or roll number) in session review or class roster views.
 6. Stop the session to review presence coverage, status breakdowns, timeline replays, camera health, and unknown-face attributions.
@@ -221,7 +222,7 @@ context/        Product, architecture, UI, standards, and progress documentation
 ## Feature status & key implementations
 
 - **Face Recognition**: InsightFace ArcFace (`buffalo_l`) 512-d embeddings, cosine similarity threshold >= 0.5, teacher-configurable recognition interval (15 s–5 min, default 15 s).
-- **Enrollment**: Browser MediaPipe Face Landmarker pose guidance (front, left, right), image file upload fallback, roll-number capture.
+- **Enrollment**: Browser MediaPipe Face Landmarker pose guidance (front, left, right, up, down), image file upload fallback, roll-number capture.
 - **Authentication**: JWT token-based auth, email or roll number login for students, invite-code protected admin and teacher registration.
 - **Room & Camera Management**: Admin-owned physical rooms, permanent room codes, room-level camera CRUD (webcam, IP/RTSP, video file).
 - **Session & Attendance Engine**: Flexible qualification windows (15s–60m), 5-second cross-camera de-duplication, automated Present/Late/Absent evaluation, append-only manual corrections, completed session deletion.
